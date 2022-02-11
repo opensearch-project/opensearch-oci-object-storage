@@ -1,0 +1,23 @@
+<FindBugsFilter>
+    <!-- For documentation on this file's format,
+              see http://git.eclipse.org/c/tcf/org.eclipse.tcf.git/plain/admin/findbugs-exclude.xml
+
+    For a description of the error codes,
+    see http://findbugs.sourceforge.net/bugDescriptions.html
+    -->
+
+    <!-- placeholder for any exclusions -->
+
+    <Match>
+        <Class name="org.opensearch.fixtures.oci.OciHttpHandler" />
+        <Method name="handle" />
+        <Bug pattern="REC_CATCH_EXCEPTION" />
+    </Match>
+
+    <Match>
+        <Class name="org.opensearch.fixtures.oci.LocalBucket" />
+        <Method name="getPrefixToObjectMap" />
+        <Bug pattern="EI_EXPOSE_REP" />
+    </Match>
+
+</FindBugsFilter>

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <parent>
+        <groupId>com.oracle.pic.opensearch</groupId>
+        <artifactId>reactor-pom</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.opensearch.repositories.oci</groupId>
+    <artifactId>oci-repository-plugin</artifactId>
+    <packaging>jar</packaging>
+    <version>${opensearch.version}</version>
+    <name>OCI repository for opensearch</name>
+
+    <description>The OCI repository plugin adds OCI Object Storage support for repositories.</description>
+
+    <properties>
+        <!-- assembly descriptors -->
+        <opensearch.assembly.descriptor>${basedir}/src/main/assemblies/plugin.xml</opensearch.assembly.descriptor>
+        <!-- Fix jacoco in tests framework-->
+        <cc.code-coverage-ratio>0.0</cc.code-coverage-ratio>
+
+    </properties>
+
+  <dependencies>
+      <!-- Cross project dependencies-->
+      <dependency>
+          <groupId>org.opensearch.fixtures.oci</groupId>
+          <artifactId>oci-objectstorage-fixture</artifactId>
+          <scope>test</scope>
+      </dependency>
+
+      <!-- oci dependencies -->
+      <dependency>
+          <groupId>com.oracle.oci.sdk</groupId>
+          <artifactId>oci-java-sdk-objectstorage</artifactId>
+      </dependency>
+
+
+      <!-- misc -->
+      <dependency>
+          <groupId>net.jodah</groupId>
+          <artifactId>failsafe</artifactId>
+      </dependency>
+
+
+      <!-- FIPS deps-->
+      <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bc-fips</artifactId>
+      </dependency>
+      <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-fips</artifactId>
+      </dependency>
+      <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bctls-fips</artifactId>
+      </dependency>
+
+      <dependency>
+          <groupId>org.projectlombok</groupId>
+          <artifactId>lombok</artifactId>
+          <version>1.18.16</version>
+      </dependency>
+
+      <!-- provided scoped deps -->
+      <dependency>
+          <groupId>org.opensearch</groupId>
+          <artifactId>opensearch</artifactId>
+      </dependency>
+
+      <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-core</artifactId>
+      </dependency>
+
+      <!-- Test dependencies -->
+      <dependency>
+          <groupId>org.opensearch.test</groupId>
+          <artifactId>framework</artifactId>
+          <scope>test</scope>
+      </dependency>
+
+      <!-- Netty -->
+      <dependency>
+          <groupId>org.opensearch.plugin</groupId>
+          <artifactId>transport-netty4-client</artifactId>
+          <scope>test</scope>
+      </dependency>
+
+      <dependency>
+          <groupId>org.opensearch.client</groupId>
+          <artifactId>opensearch-rest-high-level-client</artifactId>
+          <scope>test</scope>
+      </dependency>
+
+      <dependency>
+          <groupId>org.assertj</groupId>
+          <artifactId>assertj-core</artifactId>
+          <scope>test</scope>
+      </dependency>
+
+  </dependencies>
+
+    <profiles>
+        <profile>
+            <id>Advanced</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>plugin</id>
+                                <phase>package</phase>
+                                <configuration>
+                                    <appendAssemblyId>false</appendAssemblyId>
+                                    <tarLongFileMode>posix</tarLongFileMode>
+                                    <outputDirectory>${project.build.directory}/releases/</outputDirectory>
+                                    <descriptors>
+                                        <descriptor>${opensearch.assembly.descriptor}</descriptor>
+                                    </descriptors>
+                                </configuration>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+        </resources>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <tests.coverage>true</tests.coverage>
+                        <tests.coverage.dir>${project.build.directory}</tests.coverage.dir>
+                        <tests.security.manager>true</tests.security.manager>
+                        <opensearch.set.netty.runtime.available.processors>false</opensearch.set.netty.runtime.available.processors>
+                        <buildDirectory>${project.build.directory}</buildDirectory>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
