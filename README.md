@@ -1,28 +1,35 @@
 # OpenSearch OCI Object Storage Plugin
+This plugin allows the user to take snapshots into OCI Object storage from the OpenSearch cluster.
+Some important features that make this plugin very friendly for production deployments are:
+1. Authentication with instance principals
+2. Option for force bucket creation for repository
+
+Note: The recommended authentication method using this plugin is instance principals.
 
 ## Build and install the plugin
-To build the plugin zip distribution file
+To build the plugin zip distribution file and running all the tests
 ```bash
 mvn clean install -PAdvanced
 ```
-Install the plugin on your Elasticsearch cluster
-```bash
-OS_HOME=<YOUR OPENSEARCH INSTALLATION PATH HERE> # (e.g. /Users/saherman/opensearch)
 
-${OS_HOME}/bin/opensearch-plugin install file://target/releases/oci_repository_plugin-1.2.4.0.zip
+Install the plugin on your OpenSearch cluster
+```bash
+OPENSEARCH_HOME=<YOUR OPENSEARCH INSTALLATION PATH HERE> # (e.g. /Users/saherman/opensearch)
+
+${OPENSEARCH_HOME}/bin/opensearch-plugin install file://target/releases/oci_repository_plugin-1.2.4.0.zip
 ```
 
 Start your cluster.
 ```bash
-${OS_HOME}/bin/opensearch
+${OPENSEARCH_HOME}/bin/opensearch
 ```
 Note: if your cluster was already running make sure to restart it.
 
-# 1. Configure the repository
+## 1. Configure the repository
 Initially you would have to configure the repository.
 You can do so either with user credentials or instance principal.
 
-## Configure with user credentials
+### Configure with user credentials
 ```bash
 OCI_REGION=us-phoenix-1
 OCI_TENANCY=my_prod_tenancy
@@ -50,7 +57,7 @@ curl -XPUT "http://localhost:9200/_snapshot/oci_repository" -H 'Content-Type: ap
 "
 ``` 
 
-## Configure with instance principal
+### Configure with instance principal
 
 ```bash
 # if running on overlay you can configure the repository using instance principal
@@ -70,7 +77,7 @@ curl -XPUT "http://localhost:9200/_snapshot/oci_repository" -H 'Content-Type: ap
 "
 ```
 
-# 2. Test the repository
+## 2. Test the repository
 Download some sample data
 ```bash
 curl -O https://download.elastic.co/demos/kibana/gettingstarted/7.x/shakespeare.json
@@ -126,7 +133,7 @@ Check your indices
 curl -X GET "http://localhost:9200/_cat/indices"
 ```
 
-# 3. Restore new cluster from repository
+## 3. Restore new cluster from repository
 Reconfigure your repository (see step 1 for user cred vs instance principals)
 ```bash
 curl -XPUT "http://localhost:9200/_snapshot/oci_repository" -H 'Content-Type: application/json' -d"
@@ -136,7 +143,7 @@ curl -XPUT "http://localhost:9200/_snapshot/oci_repository" -H 'Content-Type: ap
     \"client\": \"default\",
     \"region\": \"${OCI_REGION}\",
     \"endpoint\": \"https://objectstorage.${OCI_REGION}.oraclecloud.com\",
-    \"bucket\": \"elasticsearch-repository\",
+    \"bucket\": \"opensearch-repository\",
     \"namespace\": \"bmc_siem_prod\",
     \"userId\" : \"ocid1.user.oc1..aaaaaaaa5vtbkg4omdvni7t67izxphsvmqdnkfhhspn54hvo7n5no65332yq\",
     \"tenantId\" : \"ocid1.tenancy.oc1..aaaaaaaafi4l6qecddifs7kew5uzc24xwvtraosoiyvjgc5rq26nciigrhtq\",
