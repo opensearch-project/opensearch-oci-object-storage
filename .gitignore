@@ -1,0 +1,11 @@
+*.iml
+.idea
+.DS_Store
+target
+input_ocibuild
+output_ocibuild_compilesource
+**/*.classpath
+**/*.factorypath
+**/org.eclipse.*
+**/.project
+**/.DS_Store
