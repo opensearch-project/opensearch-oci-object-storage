@@ -17,8 +17,8 @@
         <fileSet>
             <outputDirectory>${file.separator}</outputDirectory>
             <includes>
-                <include>src/main/resources/plugin-descriptor.properties</include>
-                <include>src/main/resources/plugin-security.policy</include>
+                <include>plugin-descriptor.properties</include>
+                <include>plugin-security.policy</include>
             </includes>
         </fileSet>
     </fileSets>
