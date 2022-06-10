@@ -14,7 +14,7 @@
         <log4j.version>2.17.0</log4j.version>
         <guava.version>27.1-jre</guava.version>
         <oci-java-sdk-version>2.14.1</oci-java-sdk-version>
-        <jackson.version>2.11.4</jackson.version>
+        <jackson.version>2.12.6.1</jackson.version>
         <cc.code-coverage-ratio>0.2</cc.code-coverage-ratio>
         <junit-jupiter-version>5.5.0</junit-jupiter-version>
         <bouncycastle-version>1.0.2</bouncycastle-version>
