@@ -17,7 +17,6 @@
         <jackson.version>2.13.4</jackson.version>
         <cc.code-coverage-ratio>0.2</cc.code-coverage-ratio>
         <junit-jupiter-version>5.5.0</junit-jupiter-version>
-        <bouncycastle-version>1.0.2</bouncycastle-version>
         <management-plane-version>0.2.143</management-plane-version>
         <jersey-version>2.25.1</jersey-version>
         <jackson-version>2.12.5</jackson-version>
@@ -66,17 +65,17 @@
             <dependency>
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bc-fips</artifactId>
-                <version>${bouncycastle-version}</version>
+                <version>1.0.2.3</version>
             </dependency>
             <dependency>
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcpkix-fips</artifactId>
-                <version>${bouncycastle-version}</version>
+                <version>1.0.6</version>
             </dependency>
             <dependency>
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bctls-fips</artifactId>
-                <version>1.0.9</version>
+                <version>1.0.13</version>
             </dependency>
             <!-- misc -->
             <dependency>
