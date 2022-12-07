@@ -25,7 +25,15 @@
 
     </properties>
 
-  <dependencies>
+    <dependencies>
+
+      <!-- Required so that we can get logging from OCI SDK  -->
+      <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-simple</artifactId>
+          <version>${slf4j.version}</version>
+      </dependency>
+      
       <!-- Cross project dependencies-->
       <dependency>
           <groupId>org.opensearch.fixtures.oci</groupId>
