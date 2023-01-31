@@ -20,7 +20,7 @@
         <management-plane-version>0.2.143</management-plane-version>
         <jersey-version>2.25.1</jersey-version>
         <jackson-version>2.14.1</jackson-version>
-	<slf4j.version>1.7.21</slf4j.version>
+        <slf4j.version>1.7.21</slf4j.version>
     </properties>
 
     <modules>
@@ -28,15 +28,15 @@
         <module>oci-repository-plugin</module>
     </modules>
     <dependencyManagement>
-      <dependencies>
+        <dependencies>
 
-	    <!-- Required so that we can get logging from OCI SDK  -->
-	    <dependency>
+            <!-- Required so that we can get logging from OCI SDK  -->
+            <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-simple</artifactId>
                 <version>${slf4j.version}</version>
             </dependency>
-	    
+
             <!-- Cross project dependencies-->
             <dependency>
                 <groupId>com.oracle.pic.opensearch</groupId>
