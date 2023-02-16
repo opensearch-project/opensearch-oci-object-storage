@@ -3,10 +3,12 @@ package org.opensearch.fixtures.oci;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.google.common.base.Preconditions;
+import com.oracle.bmc.model.Range;
 import com.oracle.bmc.objectstorage.model.Bucket;
 import com.oracle.bmc.objectstorage.model.CreateBucketDetails;
 import com.oracle.bmc.objectstorage.model.ListObjects;
 import com.oracle.bmc.objectstorage.model.ObjectSummary;
+import com.oracle.bmc.util.internal.StringUtils;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -47,6 +49,9 @@ public class OciHttpHandler implements HttpHandler {
     @Override
     public void handle(HttpExchange exchange) {
         final String path = exchange.getRequestURI().getPath();
+        final String opcRequestId = exchange.getRequestHeaders().getFirst("Opc-request-id");
+        final String requestMethod = exchange.getRequestMethod();
+        log.debug("request received in fixture with method: {}, path: {}, opcRequestId: {}", requestMethod, path, opcRequestId);
         final String[] pathParams = path.split("/");
         try {
             if (path.equals("/n/testResource") && exchange.getRequestMethod().equals("GET")) {
@@ -79,7 +84,15 @@ public class OciHttpHandler implements HttpHandler {
                 final String bucket = pathParams[4];
                 final String objectName =
                         String.join("/", Arrays.copyOfRange(pathParams, 6, pathParams.length));
-                getObject(namespace, bucket, objectName, exchange);
+                final String rangeHeader = exchange.getRequestHeaders().getFirst("Range");
+                final Range range;
+                if (rangeHeader != null) {
+                    range = parseRangeValue(rangeHeader);
+                } else {
+                    range = null;
+                }
+
+                getObject(namespace, bucket, objectName, range, exchange);
             } else if (Regex.simpleMatch("/n/*/b/*/o/*", path)
                     && exchange.getRequestMethod().equals("HEAD")) {
                 // HEAD object
@@ -227,7 +240,7 @@ public class OciHttpHandler implements HttpHandler {
     }
 
     private void getObject(
-            String namespaceName, String bucketName, String objectName, HttpExchange exchange)
+            String namespaceName, String bucketName, String objectName, Range range, HttpExchange exchange)
             throws IOException {
         log.info(
                 "Get object with namespaceName:{}, bucketName: {}, objectName: {}",
@@ -239,7 +252,14 @@ public class OciHttpHandler implements HttpHandler {
         final OSObject object = bucket.getObject(objectName);
         exchange.getResponseHeaders().add("Content-Type", "application/json");
         exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
-        exchange.getResponseBody().write(object.getBytes());
+        if (range != null) {
+            exchange.getResponseBody()
+                    .write(Arrays.copyOfRange(object.getBytes(),
+                            range.getStartByte().intValue(), range.getEndByte().intValue() + 1));
+        } else {
+            exchange.getResponseBody().write(object.getBytes());
+        }
+
         exchange.close();
     }
 
@@ -313,5 +333,24 @@ public class OciHttpHandler implements HttpHandler {
         exchange.getResponseHeaders().add("Content-Type", "application/json");
         exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
         exchange.close();
+    }
+
+    // Original Range parser from OCI is incompatible with it's own actual "toString" serialization method
+    // therefore this is hack is needed.
+    private static Range parseRangeValue(String value) {
+        log.debug("Attempting to parse range: {}", value);
+        value = value.replace("bytes", "").replace("=", "").trim();
+        String[] byteValues = value.split("-", -1); // include trailing empty strings
+        if (byteValues.length != 2) {
+            throw new IllegalArgumentException(
+                    "Must provide <start>-<end> format for range request: " + value);
+        }
+        Long startByte = StringUtils.isBlank(byteValues[0]) ? null : Long.parseLong(byteValues[0]);
+        Long endByte = StringUtils.isBlank(byteValues[1]) ? null : Long.parseLong(byteValues[1]);
+        if (startByte == null && endByte == null) {
+            throw new IllegalArgumentException(
+                    "Must provide start/end byte for range request: " + value);
+        }
+        return new Range(startByte, endByte);
     }
 }

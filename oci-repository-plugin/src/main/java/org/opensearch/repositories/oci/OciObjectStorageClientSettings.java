@@ -26,7 +26,7 @@ import java.io.InputStream;
 import static org.opensearch.common.settings.Setting.boolSetting;
 import static org.opensearch.common.settings.Setting.simpleString;
 
-/** Container for Google Cloud Storage clients settings. */
+/** Container for OCI object storage clients settings. */
 @Log4j2
 public class OciObjectStorageClientSettings {
     public static final String DEV_REGION = "us-ashburn-1";

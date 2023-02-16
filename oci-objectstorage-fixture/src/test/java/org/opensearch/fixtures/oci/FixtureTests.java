@@ -7,6 +7,7 @@ import javax.ws.rs.client.WebTarget;
 import com.oracle.bmc.Region;
 import com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
 import com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
+import com.oracle.bmc.model.Range;
 import com.oracle.bmc.objectstorage.ObjectStorage;
 import com.oracle.bmc.objectstorage.ObjectStorageClient;
 import com.oracle.bmc.objectstorage.model.CreateBucketDetails;
@@ -29,7 +30,7 @@ import java.util.HashMap;
 import static org.junit.Assert.assertEquals;
 
 @Log4j2
-public class FixtureTest {
+public class FixtureTests {
     private static final String NAMESPACE = "myNamespace";
     private static final String BUCKET_NAME = "myBucket";
     private static final String COMPARTMENT_ID = "myCompartmentId";
@@ -139,9 +140,22 @@ public class FixtureTest {
                                 .bucketName(BUCKET_NAME)
                                 .objectName("/myPrefix/myObject")
                                 .build());
+        log.info("getObjectResponse: {}", getObjectResponse);
         Assertions.assertEquals(
                 "myContent", Streams.readFully(getObjectResponse.getInputStream()).utf8ToString());
+
+        // 4.1
+        final GetObjectResponse getObjectResponseWithRange =
+                objectStorage.getObject(
+                        GetObjectRequest.builder()
+                                .namespaceName(NAMESPACE)
+                                .bucketName(BUCKET_NAME)
+                                .range(new Range(0L, 1L))
+                                .objectName("/myPrefix/myObject")
+                                .build());
         log.info("getObjectResponse: {}", getObjectResponse);
+        Assertions.assertEquals(
+                "my", Streams.readFully(getObjectResponseWithRange.getInputStream()).utf8ToString());
 
         // 5. Delete object
         final DeleteObjectResponse deleteObjectResponse =

@@ -13,23 +13,28 @@ package org.opensearch.repositories.oci;
 
 import static java.util.Collections.emptyMap;
 
-import com.oracle.bmc.objectstorage.ObjectStorage;
-import com.oracle.bmc.objectstorage.ObjectStorageClient;
+import com.oracle.bmc.ClientConfiguration;
+import com.oracle.bmc.objectstorage.ObjectStorageAsync;
+import com.oracle.bmc.objectstorage.ObjectStorageAsyncClient;
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.common.collect.MapBuilder;
 import org.opensearch.common.util.LazyInitializable;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Service class to hold client instances
+ */
 @Log4j2
-public class OciObjectStorageService {
+public class OciObjectStorageService implements Closeable {
     /**
      * Dictionary of client instances. Client instances are built lazily from the latest settings.
      */
-    private final AtomicReference<Map<String, LazyInitializable<ObjectStorage, IOException>>>
+    private final AtomicReference<Map<String, LazyInitializable<ObjectStorageAsync, IOException>>>
             clientsCache = new AtomicReference<>(emptyMap());
 
     /**
@@ -43,20 +48,20 @@ public class OciObjectStorageService {
             Map<String, OciObjectStorageClientSettings> clientsSettings) {
 
         // build the new lazy clients
-        final Map<String, LazyInitializable<ObjectStorage, IOException>> oldClientCache =
+        final Map<String, LazyInitializable<ObjectStorageAsync, IOException>> oldClientCache =
                 clientsCache.get();
-        final MapBuilder<String, LazyInitializable<ObjectStorage, IOException>> newClientsCache =
+        final MapBuilder<String, LazyInitializable<ObjectStorageAsync, IOException>> newClientsCache =
                 MapBuilder.newMapBuilder();
 
         // replace or add new clients
         newClientsCache.putAll(oldClientCache);
         for (final Map.Entry<String, OciObjectStorageClientSettings> entry :
                 clientsSettings.entrySet()) {
-            final LazyInitializable<ObjectStorage, IOException> previousClient =
+            final LazyInitializable<ObjectStorageAsync, IOException> previousClient =
                     oldClientCache.get(entry.getKey());
             newClientsCache.put(
                     entry.getKey(),
-                    new LazyInitializable<>(() -> createClient(entry.getKey(), entry.getValue())));
+                    new LazyInitializable<>(() -> createClientAsync(entry.getKey(), entry.getValue())));
             // we will release the previous client for this entry if existed
             if (previousClient != null) {
                 previousClient.reset();
@@ -75,8 +80,8 @@ public class OciObjectStorageService {
      * @param clientName name of the client settings used to create the client
      * @return a cached client storage instance that can be used to manage objects (blobs)
      */
-    public ObjectStorage client(final String clientName) throws IOException {
-        final LazyInitializable<ObjectStorage, IOException> lazyClient =
+    public ObjectStorageAsync client(final String clientName) throws IOException {
+        final LazyInitializable<ObjectStorageAsync, IOException> lazyClient =
                 clientsCache.get().get(clientName);
         if (lazyClient == null) {
             log.warn("No client found for client name");
@@ -94,7 +99,7 @@ public class OciObjectStorageService {
      * @param clientSettings name of client settings to use, including secure settings
      * @return a new client storage instance that can be used to manage objects (blobs)
      */
-    private ObjectStorage createClient(
+    static ObjectStorageAsync createClientAsync(
             String clientName, OciObjectStorageClientSettings clientSettings) throws IOException {
         log.debug(
                 () ->
@@ -103,14 +108,30 @@ public class OciObjectStorageService {
                                 clientName,
                                 clientSettings.getEndpoint()));
 
-        final ObjectStorage objectStorageClient =
+        final ObjectStorageAsync objectStorageClient =
                 SocketAccess.doPrivilegedIOException(
                         () ->
-                                new ObjectStorageClient(
-                                        clientSettings.getAuthenticationDetailsProvider()));
+                                ObjectStorageAsyncClient.builder()
+                                        .configuration(ClientConfiguration.builder()
+                                                //.connectionTimeoutMillis(10000)
+                                                //.readTimeoutMillis(10000)
+                                                .build()
+                                        ).build(
+                                                clientSettings.getAuthenticationDetailsProvider()));
 
         objectStorageClient.setEndpoint(clientSettings.getEndpoint());
 
         return objectStorageClient;
+    }
+
+    @Override
+    public void close() throws IOException {
+        clientsCache.get().values().stream().forEach(lazyClient -> {
+            try {
+                lazyClient.getOrCompute().close();
+            } catch (Exception e) {
+                log.error("unable to close client");
+            }
+        });
     }
 }

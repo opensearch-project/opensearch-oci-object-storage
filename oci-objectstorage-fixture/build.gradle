@@ -1,0 +1,41 @@
+plugins {
+    id 'java-library'
+    id 'java'
+}
+
+apply plugin: 'io.freefair.lombok'
+apply plugin: 'java'
+apply plugin: 'java-library'
+
+dependencies {
+    implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
+    implementation('jakarta.ws.rs:jakarta.ws.rs-api:2.1.6')
+    testImplementation 'junit:junit:4.13.2'
+    implementation("org.opensearch:opensearch:${opensearch_version}")
+}
+
+test {
+    include '**/*Tests.class'
+    testLogging.showStandardStreams = true
+    systemProperty 'log4j2.configurationFile', "${projectDir}/src/test/resources/log4j2-test.xml"
+}
+
+version = '1.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(15)
+    }
+}
+
+
+
+compileJava {
+    options.release = 11
+}
+
+
+
+
+
+
