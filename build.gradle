@@ -16,7 +16,7 @@ repositories {
 }
 
 allprojects {
-    version = '2.4.0'
+    version = '2.5.0'
 }
 
 subprojects {
@@ -26,8 +26,9 @@ subprojects {
     apply plugin: 'jacoco'
 
     ext {
-        opensearch_version = System.getProperty("opensearch.version", "2.4.0")
+        opensearch_version = System.getProperty("opensearch.version", "2.5.0")
         sdk_version = "3.3.0"
+        jackson_version = "2.14.1"
     }
 
     repositories {
@@ -49,28 +50,28 @@ subprojects {
         implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage-extensions:${sdk_version}")
         implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient:${sdk_version}")
         implementation("com.oracle.oci.sdk:oci-java-sdk-common:${sdk_version}")
-        implementation 'com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.14.0'
-        implementation 'com.fasterxml.jackson.jaxrs:jackson-jaxrs-base:2.14.0'
-        implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.14.0'
+        implementation("com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:${jackson_version}")
+        implementation("com.fasterxml.jackson.jaxrs:jackson-jaxrs-base:${jackson_version}")
+        implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:${jackson_version}")
 
         compileOnly "org.opensearch:opensearch:${opensearch_version}"
 
         // Fix dependency collision with opensearch
         implementation('com.fasterxml.jackson.module:jackson-module-jaxb-annotations') {
             version {
-                strictly '2.14.0'
+                strictly "${jackson_version}"
             }
         }
-        implementation('com.fasterxml.jackson.core:jackson-annotations:2.14.0') {
+        implementation("com.fasterxml.jackson.core:jackson-annotations:${jackson_version}") {
             force = true
         }
-        implementation('com.fasterxml.jackson.core:jackson-databind:2.14.0') {
+        implementation("com.fasterxml.jackson.core:jackson-databind:${jackson_version}") {
             force = true
         }
-        implementation('com.fasterxml.jackson.core:jackson-core:2.14.0') {
+        implementation("com.fasterxml.jackson.core:jackson-core:${jackson_version}") {
             force = true
         }
-        compileOnly('com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.0') {
+        compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}") {
             force = true
         }
 

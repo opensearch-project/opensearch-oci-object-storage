@@ -23,7 +23,7 @@ Install the plugin on your OpenSearch cluster
 ```bash
 OPENSEARCH_HOME=<YOUR OPENSEARCH INSTALLATION PATH HERE> # (e.g. /Users/saherman/opensearch)
 
-${OPENSEARCH_HOME}/bin/opensearch-plugin install file://oci-repository-plugin/build/distributions/repository-oci-2.4.0.zip
+${OPENSEARCH_HOME}/bin/opensearch-plugin install file://oci-repository-plugin/build/distributions/repository-oci-2.5.0.zip
 ```
 
 Start your cluster.
