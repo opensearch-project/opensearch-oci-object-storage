@@ -25,7 +25,15 @@
 
     </properties>
 
-  <dependencies>
+    <dependencies>
+
+      <!-- Required so that we can get logging from OCI SDK  -->
+      <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-simple</artifactId>
+          <version>${slf4j.version}</version>
+      </dependency>
+      
       <!-- Cross project dependencies-->
       <dependency>
           <groupId>org.opensearch.fixtures.oci</groupId>
@@ -64,7 +72,7 @@
       <dependency>
           <groupId>org.projectlombok</groupId>
           <artifactId>lombok</artifactId>
-          <version>1.18.16</version>
+          <version>1.18.26</version>
       </dependency>
 
       <!-- provided scoped deps -->

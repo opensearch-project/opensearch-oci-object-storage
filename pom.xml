@@ -10,16 +10,17 @@
     <packaging>pom</packaging>
     <name>OCI OpenSearch plugins POM</name>
     <properties>
-        <opensearch.version>1.2.4</opensearch.version>
+        <opensearch.version>1.3.8</opensearch.version>
         <log4j.version>2.17.1</log4j.version>
         <guava.version>31.1-jre</guava.version>
         <oci-java-sdk-version>2.14.1</oci-java-sdk-version>
-        <jackson.version>2.13.4</jackson.version>
+        <jackson.version>2.14.1</jackson.version>
         <cc.code-coverage-ratio>0.2</cc.code-coverage-ratio>
         <junit-jupiter-version>5.5.0</junit-jupiter-version>
         <management-plane-version>0.2.143</management-plane-version>
         <jersey-version>2.25.1</jersey-version>
-        <jackson-version>2.12.5</jackson-version>
+        <jackson-version>2.14.1</jackson-version>
+        <slf4j.version>1.7.21</slf4j.version>
     </properties>
 
     <modules>
@@ -28,6 +29,14 @@
     </modules>
     <dependencyManagement>
         <dependencies>
+
+            <!-- Required so that we can get logging from OCI SDK  -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-simple</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+
             <!-- Cross project dependencies-->
             <dependency>
                 <groupId>com.oracle.pic.opensearch</groupId>
@@ -96,7 +105,7 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.16</version>
+                <version>1.18.26</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
