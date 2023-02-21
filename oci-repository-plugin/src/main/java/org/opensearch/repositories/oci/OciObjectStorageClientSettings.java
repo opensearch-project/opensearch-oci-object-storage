@@ -11,7 +11,6 @@
 
 package org.opensearch.repositories.oci;
 
-import com.google.common.base.Supplier;
 import com.oracle.bmc.Region;
 import com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
 import com.oracle.bmc.auth.InstancePrincipalsAuthenticationDetailsProvider;
@@ -20,8 +19,10 @@ import lombok.extern.log4j.Log4j2;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.common.settings.Setting;
 
-import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.function.Supplier;
 
 import static org.opensearch.common.settings.Setting.boolSetting;
 import static org.opensearch.common.settings.Setting.simpleString;
@@ -96,7 +97,7 @@ public class OciObjectStorageClientSettings {
                     toAuthDetailsProvider(
                             () -> {
                                 try {
-                                    return new FileInputStream(credentialsFilePath);
+                                    return Files.newInputStream(Paths.get(credentialsFilePath));
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }
