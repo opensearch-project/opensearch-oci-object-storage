@@ -17,6 +17,7 @@ import com.oracle.bmc.auth.InstancePrincipalsAuthenticationDetailsProvider;
 import com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
 import lombok.extern.log4j.Log4j2;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
+import org.opensearch.common.io.PathUtils;
 import org.opensearch.common.settings.Setting;
 
 import java.io.InputStream;
@@ -97,7 +98,7 @@ public class OciObjectStorageClientSettings {
                     toAuthDetailsProvider(
                             () -> {
                                 try {
-                                    return Files.newInputStream(Paths.get(credentialsFilePath));
+                                    return Files.newInputStream(PathUtils.get(credentialsFilePath));
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }

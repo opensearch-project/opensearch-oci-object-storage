@@ -12,7 +12,7 @@ def pluginName = 'repository-oci'
 def pluginDescription = 'OCI Object storage repository'
 def projectPath = 'org.opensearch'
 def pathToPlugin = 'repositories.oci'
-def pluginClassName = 'OciObjectStorageRepository'
+def pluginClassName = 'OciObjectStoragePlugin'
 
 tasks.register("preparePluginPathDirs") {
     mustRunAfter clean
