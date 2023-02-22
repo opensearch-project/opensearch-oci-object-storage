@@ -26,6 +26,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * The plugin class
+ */
 public class OciObjectStoragePlugin extends Plugin implements RepositoryPlugin {
 
     // package-private for tests

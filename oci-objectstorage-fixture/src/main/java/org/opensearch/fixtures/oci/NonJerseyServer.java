@@ -26,7 +26,7 @@ public class NonJerseyServer implements Closeable {
                 () -> {
                     try {
                         server.start();
-                        Thread.sleep(Integer.MAX_VALUE);
+                        Thread.sleep(Long.MAX_VALUE);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }

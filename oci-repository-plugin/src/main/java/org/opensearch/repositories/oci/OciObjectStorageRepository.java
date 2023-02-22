@@ -32,6 +32,9 @@ import static org.opensearch.common.settings.Setting.boolSetting;
 import static org.opensearch.common.settings.Setting.byteSizeSetting;
 import static org.opensearch.common.settings.Setting.simpleString;
 
+/**
+ * Blob repository that corresponds to OCI
+ */
 @Log4j2
 public class OciObjectStorageRepository extends BlobStoreRepository {
 

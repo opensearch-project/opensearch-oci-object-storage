@@ -11,17 +11,19 @@
 
 package org.opensearch.repositories.oci;
 
-import com.google.common.base.Supplier;
 import com.oracle.bmc.Region;
 import com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
 import com.oracle.bmc.auth.InstancePrincipalsAuthenticationDetailsProvider;
 import com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
 import lombok.extern.log4j.Log4j2;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
+import org.opensearch.common.io.PathUtils;
 import org.opensearch.common.settings.Setting;
 
-import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.function.Supplier;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -31,7 +33,7 @@ import java.security.AllPermission;
 import static org.opensearch.common.settings.Setting.boolSetting;
 import static org.opensearch.common.settings.Setting.simpleString;
 
-/** Container for Google Cloud Storage clients settings. */
+/** Container for OCI object storage clients settings. */
 @Log4j2
 public class OciObjectStorageClientSettings {
     public static final String DEV_REGION = "us-ashburn-1";
@@ -101,7 +103,7 @@ public class OciObjectStorageClientSettings {
                     toAuthDetailsProvider(
                             () -> {
                                 try {
-                                    return new FileInputStream(credentialsFilePath);
+                                    return Files.newInputStream(PathUtils.get(credentialsFilePath));
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }

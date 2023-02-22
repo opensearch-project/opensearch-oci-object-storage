@@ -6,17 +6,23 @@ Some important features that make this plugin very friendly for production deplo
 
 Note: The recommended authentication method using this plugin is instance principals.
 
+## To immediately test the plugin
+You can run a sample cluster with the plugin installed in it
+```bash
+./gradlew clean :oci-repository-plugin:run
+```
+
 ## Build and install the plugin
 To build the plugin zip distribution file and running all the tests
 ```bash
-mvn clean install -PAdvanced
+./gradlew clean test assemble
 ```
+
 
 Install the plugin on your OpenSearch cluster
 ```bash
 OPENSEARCH_HOME=<YOUR OPENSEARCH INSTALLATION PATH HERE> # (e.g. /Users/saherman/opensearch)
-
-${OPENSEARCH_HOME}/bin/opensearch-plugin install file://target/releases/oci_repository_plugin-1.3.8.zip
+${OPENSEARCH_HOME}/bin/opensearch-plugin install file://oci-repository-plugin/build/distributions/repository-oci-2.5.0.zip
 ```
 
 Start your cluster.

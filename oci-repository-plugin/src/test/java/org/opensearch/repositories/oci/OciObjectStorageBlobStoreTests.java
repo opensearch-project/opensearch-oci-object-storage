@@ -28,7 +28,7 @@ import org.mockito.stubbing.Answer;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
-public class OciObjectStorageBlobStoreTest {
+public class OciObjectStorageBlobStoreTests {
 
     public void tearDown() {
         Mockito.validateMockitoUsage();

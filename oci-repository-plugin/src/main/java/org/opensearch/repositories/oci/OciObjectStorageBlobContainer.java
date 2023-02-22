@@ -67,7 +67,7 @@ class OciObjectStorageBlobContainer extends AbstractBlobContainer {
 
     @Override
     public InputStream readBlob(String blobName, long position, long length) throws IOException {
-        throw new RuntimeException("not implemented");
+        return blobStore.readBlob(blobName, position, length);
     }
 
     @Override

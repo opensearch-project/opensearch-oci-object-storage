@@ -14,14 +14,19 @@ package org.opensearch.repositories.oci;
 import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
 
 import com.oracle.bmc.model.BmcException;
-import com.oracle.bmc.objectstorage.ObjectStorage;
+import com.oracle.bmc.model.Range;
+import com.oracle.bmc.objectstorage.ObjectStorageAsync;
 import com.oracle.bmc.objectstorage.model.CreateBucketDetails;
 import com.oracle.bmc.objectstorage.model.ObjectSummary;
 import com.oracle.bmc.objectstorage.requests.*;
+import com.oracle.bmc.objectstorage.responses.CreateBucketResponse;
+import com.oracle.bmc.objectstorage.responses.DeleteObjectResponse;
 import com.oracle.bmc.objectstorage.responses.GetBucketResponse;
+import com.oracle.bmc.objectstorage.responses.GetObjectResponse;
+import com.oracle.bmc.objectstorage.responses.HeadObjectResponse;
 import com.oracle.bmc.objectstorage.responses.ListObjectsResponse;
-import com.oracle.bmc.objectstorage.transfer.UploadConfiguration;
-import com.oracle.bmc.objectstorage.transfer.UploadManager;
+import com.oracle.bmc.objectstorage.responses.PutObjectResponse;
+import com.oracle.bmc.responses.AsyncHandler;
 import lombok.extern.log4j.Log4j2;
 import net.jodah.failsafe.Failsafe;
 import net.jodah.failsafe.RetryPolicy;
@@ -51,6 +56,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 // Lots of code duplication with OciObjectStorageBlobStore and OciObjectStorageBlobContainer
@@ -138,12 +146,13 @@ class OciObjectStorageBlobStore implements BlobStore {
         }
     }
 
-    private ObjectStorage client() throws IOException {
+    private ObjectStorageAsync client() throws IOException {
         if (storageService.client(clientName) == null) {
             final Map<String, OciObjectStorageClientSettings> clientSettingsMap = new HashMap<>();
             clientSettingsMap.put(clientName, clientSettings);
             storageService.refreshWithoutClearingCache(clientSettingsMap);
         }
+
         return storageService.client(clientName);
     }
 
@@ -153,7 +162,9 @@ class OciObjectStorageBlobStore implements BlobStore {
     }
 
     @Override
-    public void close() {}
+    public void close() throws IOException {
+        storageService.close();
+    }
 
     /**
      * Return true if the given bucket exists
@@ -165,31 +176,41 @@ class OciObjectStorageBlobStore implements BlobStore {
         try {
             log.debug("Attempting to check if bucket exists in object store");
             final GetBucketResponse getBucketResponse =
-                    SocketAccess.doPrivilegedIOException(
-                            () ->
-                                    client().getBucket(
-                                                    GetBucketRequest.builder()
-                                                            .bucketName(bucketName)
-                                                            .namespaceName(namespace)
-                                                            .build()));
+                    client().getBucket(
+                            GetBucketRequest.builder()
+                                    .bucketName(bucketName)
+                                    .namespaceName(namespace)
+                                    .build(), new AsyncHandler<>() {
+                                @Override
+                                public void onSuccess(GetBucketRequest getBucketRequest, GetBucketResponse getBucketResponse) {
+                                    log.debug("successfully getting bucket: {} with namespace: {}", bucketName, namespace);
+                                }
+
+                                @Override
+                                public void onError(GetBucketRequest getBucketRequest, Throwable error) {
+                                    log.error("failure getting bucket: {} with namespace: {}", bucketName, namespace, error);
+                                }
+                            }).get(10, TimeUnit.SECONDS);
 
             return getBucketResponse.getBucket() != null;
-        } catch (final BmcException e) {
-            if (e.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-                log.info("bucket couldn't be found");
-                return false;
-            } else {
-                log.error(
-                        "Couldn't check if bucket [{}] exists. unrecognized error code in response",
-                        bucketName,
-                        e);
-                throw new BlobStoreException(
-                        "Unable to check if bucket ["
-                                + bucketName
-                                + "] exists, unrecognized error code in response",
-                        e);
-            }
         } catch (final Exception e) {
+            if (e.getCause() instanceof BmcException) {
+                final BmcException bmcEx =  (BmcException)e.getCause();
+                if (bmcEx.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                    log.info("bucket couldn't be found");
+                    return false;
+                } else {
+                    log.error(
+                            "Couldn't check if bucket [{}] exists. unrecognized error code in response",
+                            bucketName,
+                            e);
+                    throw new BlobStoreException(
+                            "Unable to check if bucket ["
+                                    + bucketName
+                                    + "] exists, unrecognized error code in response",
+                            e);
+                }
+            }
             throw new BlobStoreException(
                     "Unable to check if bucket [" + bucketName + "] exists", e);
         }
@@ -201,23 +222,33 @@ class OciObjectStorageBlobStore implements BlobStore {
             SocketAccess.doPrivilegedIOException(
                     () ->
                             client().createBucket(
-                                            CreateBucketRequest.builder()
-                                                    .namespaceName(namespace)
-                                                    .createBucketDetails(
-                                                            CreateBucketDetails.builder()
-                                                                    .compartmentId(
-                                                                            bucketCompartmentId)
-                                                                    .name(bucketName)
-                                                                    .storageTier(
-                                                                            CreateBucketDetails
-                                                                                    .StorageTier
-                                                                                    .Standard)
-                                                                    .publicAccessType(
-                                                                            CreateBucketDetails
-                                                                                    .PublicAccessType
-                                                                                    .NoPublicAccess)
-                                                                    .build())
-                                                    .build()));
+                                    CreateBucketRequest.builder()
+                                            .namespaceName(namespace)
+                                            .createBucketDetails(
+                                                    CreateBucketDetails.builder()
+                                                            .compartmentId(
+                                                                    bucketCompartmentId)
+                                                            .name(bucketName)
+                                                            .storageTier(
+                                                                    CreateBucketDetails
+                                                                            .StorageTier
+                                                                            .Standard)
+                                                            .publicAccessType(
+                                                                    CreateBucketDetails
+                                                                            .PublicAccessType
+                                                                            .NoPublicAccess)
+                                                            .build())
+                                            .build(), new AsyncHandler<>() {
+                                        @Override
+                                        public void onSuccess(CreateBucketRequest createBucketRequest, CreateBucketResponse createBucketResponse) {
+                                            log.debug("successfully creating bucket: {} with namespace: {}", bucketName, namespace);
+                                        }
+
+                                        @Override
+                                        public void onError(CreateBucketRequest createBucketRequest, Throwable error) {
+                                            log.error("failure creating bucket: {} with namespace: {}", bucketName, namespace, error);
+                                        }
+                                    }).get(10, TimeUnit.SECONDS));
         } catch (IOException e) {
             throw new BlobStoreException(
                     "Unable to force create bucket [" + bucketName + "] that doesn't exists", e);
@@ -250,6 +281,8 @@ class OciObjectStorageBlobStore implements BlobStore {
         final MapBuilder<String, BlobMetadata> mapBuilder = MapBuilder.newMapBuilder();
         SocketAccess.doPrivilegedVoidIOException(
                 () ->
+                {
+                    try {
                         fullListing(client(), pathPrefix).stream()
                                 .forEach(
                                         summary -> {
@@ -262,7 +295,11 @@ class OciObjectStorageBlobStore implements BlobStore {
                                             PlainBlobMetadata metadata =
                                                     new PlainBlobMetadata(suffixName, size);
                                             mapBuilder.put(suffixName, metadata);
-                                        }));
+                                        });
+                    } catch (ExecutionException | InterruptedException | TimeoutException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
 
         return mapBuilder.immutableMap();
     }
@@ -274,6 +311,8 @@ class OciObjectStorageBlobStore implements BlobStore {
         final MapBuilder<String, BlobContainer> mapBuilder = MapBuilder.newMapBuilder();
         SocketAccess.doPrivilegedVoidIOException(
                 () ->
+                {
+                    try {
                         fullListing(client(), pathStr).stream()
                                 .map(
                                         objectSummary ->
@@ -290,7 +329,11 @@ class OciObjectStorageBlobStore implements BlobStore {
                                                     childName,
                                                     new OciObjectStorageBlobContainer(
                                                             path.add(childName), this));
-                                        }));
+                                        });
+                    } catch (ExecutionException | InterruptedException | TimeoutException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
         return mapBuilder.immutableMap();
     }
 
@@ -319,8 +362,27 @@ class OciObjectStorageBlobStore implements BlobStore {
                                                                     .bucketName(bucketName)
                                                                     .namespaceName(namespace)
                                                                     .objectName(blobName)
-                                                                    .build())
-                                                    .getInputStream();
+                                                                    .build(), new AsyncHandler<>() {
+                                                        @Override
+                                                        public void onSuccess(GetObjectRequest getObjectRequest, GetObjectResponse getObjectResponse) {
+                                                            log.debug(
+                                                                    "Success getting object from '/n/{}/b/{}/o/{}'. OPC-REQUEST-ID: {}",
+                                                                    namespace,
+                                                                    bucketName,
+                                                                    blobName,
+                                                                    opcClientRequestId);
+                                                        }
+
+                                                        @Override
+                                                        public void onError(GetObjectRequest getObjectRequest, Throwable error) {
+                                                            log.debug(
+                                                                    "Failure getting object from '/n/{}/b/{}/o/{}'. OPC-REQUEST-ID: {}",
+                                                                    namespace,
+                                                                    bucketName,
+                                                                    blobName,
+                                                                    opcClientRequestId, error);
+                                                        }
+                                                    }).get().getInputStream();
                                         }));
     }
 
@@ -332,7 +394,10 @@ class OciObjectStorageBlobStore implements BlobStore {
      * @param length length of bytes to read
      * @return the InputStream used to read the blob's content
      */
-    InputStream readBlob(String blobName, long position, long length) throws IOException {
+    InputStream readBlob(String blobName, long position, long length) {
+        final String opcClientRequestId = createClientRequestId("getObjects");
+        final long startTime = System.currentTimeMillis();
+
         if (position < 0L) {
             throw new IllegalArgumentException("position must be non-negative");
         }
@@ -342,13 +407,35 @@ class OciObjectStorageBlobStore implements BlobStore {
         if (length == 0) {
             return new ByteArrayInputStream(new byte[0]);
         } else {
-            return client().getObject(
+            return Failsafe.with(getRetryPolicy(blobName, opcClientRequestId, startTime, "GET"))
+                    .get( () ->
+                            client().getObject(
                             GetObjectRequest.builder()
                                     .bucketName(bucketName)
                                     .namespaceName(namespace)
                                     .objectName(blobName)
-                                    .build())
-                    .getInputStream();
+                                    .range(new Range(position, position + length -1))
+                                    .build(), new AsyncHandler<>() {
+                                @Override
+                                public void onSuccess(GetObjectRequest getObjectRequest, GetObjectResponse getObjectResponse) {
+                                    log.debug(
+                                            "Success getting object from '/n/{}/b/{}/o/{}'",
+                                            namespace,
+                                            bucketName,
+                                            blobName);
+                                }
+
+                                @Override
+                                public void onError(GetObjectRequest getObjectRequest, Throwable error) {
+                                    log.debug(
+                                            "Failure getting object from '/n/{}/b/{}/o/{}'",
+                                            namespace,
+                                            bucketName,
+                                            blobName,
+                                            error);
+                                }
+                            }).get()
+                    .getInputStream());
         }
     }
 
@@ -376,25 +463,43 @@ class OciObjectStorageBlobStore implements BlobStore {
     DeleteResult deleteDirectory(String pathStr) throws IOException {
         final AtomicLong deletedBlobs = new AtomicLong();
         final AtomicLong deletedBytes = new AtomicLong();
-        final ObjectStorage client = client();
-        SocketAccess.doPrivilegedVoidIOException(
-                () -> {
-                    fullListing(client, pathStr).stream()
-                            .forEach(
-                                    objectSummary -> {
-                                        DeleteObjectRequest deleteObjectRequest =
-                                                DeleteObjectRequest.builder()
-                                                        .bucketName(bucketName)
-                                                        .namespaceName(namespace)
-                                                        .objectName(objectSummary.getName())
-                                                        .opcClientRequestId(
-                                                                createClientRequestId("delete"))
-                                                        .build();
-                                        client.deleteObject(deleteObjectRequest);
-                                        deletedBlobs.incrementAndGet();
-                                        // deletedBytes.addAndGet(objectSummary.getSize());
-                                    });
-                });
+        final ObjectStorageAsync client = client();
+
+        try {
+            fullListing(client, pathStr).stream()
+                    .forEach(
+                            objectSummary -> {
+                                final String opcClientRequestId = createClientRequestId("deleteDirectory");
+                                final String objectName = objectSummary.getName();
+                                final Instant start = Instant.now();
+
+                                final DeleteObjectRequest deleteObjectRequest =
+                                        DeleteObjectRequest.builder()
+                                                .bucketName(bucketName)
+                                                .namespaceName(namespace)
+                                                .objectName(objectName)
+                                                .opcClientRequestId(opcClientRequestId)
+                                                .build();
+                                Failsafe.with(getRetryPolicy(
+                                                objectName, opcClientRequestId, start.toEpochMilli(), "DELETE"))
+                                        .run(() ->  {
+                                            client.deleteObject(deleteObjectRequest, new AsyncHandler<>() {
+                                                @Override
+                                                public void onSuccess(DeleteObjectRequest deleteObjectRequest, DeleteObjectResponse deleteObjectResponse) {
+                                                    log.info("received success for delete");
+                                                }
+
+                                                @Override
+                                                public void onError(DeleteObjectRequest deleteObjectRequest, Throwable error) {
+                                                    log.info("received error for delete");
+                                                }
+                                            }).get(10, TimeUnit.SECONDS);
+                                            deletedBlobs.incrementAndGet();
+                                        });
+                            });
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
 
         return new DeleteResult(deletedBlobs.get(), deletedBytes.get());
     }
@@ -405,54 +510,97 @@ class OciObjectStorageBlobStore implements BlobStore {
      * @param blobNames names of the blobs to delete
      */
     void deleteBlobsIgnoringIfNotExists(Collection<String> blobNames) throws IOException {
-        ObjectStorage client = client();
+        ObjectStorageAsync client = client();
         SocketAccess.doPrivilegedVoidIOException(
-                () -> {
-                    blobNames.stream()
-                            .forEach(
-                                    blobName -> {
-                                        List<ObjectSummary> objectSummaries =
-                                                client.listObjects(
-                                                                ListObjectsRequest.builder()
-                                                                        .bucketName(bucketName)
-                                                                        .namespaceName(namespace)
-                                                                        .prefix(blobName)
-                                                                        .build())
-                                                        .getListObjects()
-                                                        .getObjects();
-                                        if (objectSummaries.size() > 1) {
-                                            log.error("will not delete {}", blobName);
-                                            throw new RuntimeException(
-                                                    "Something is not right, when trying to delete objects, "
-                                                            + "we found more than one object for the same blob");
-                                        }
-                                        if (objectSummaries.size() == 1) {
-                                            ObjectSummary objectSummary = objectSummaries.get(0);
-                                            DeleteObjectRequest deleteObjectRequest =
-                                                    DeleteObjectRequest.builder()
-                                                            .bucketName(bucketName)
-                                                            .namespaceName(namespace)
-                                                            .objectName(objectSummary.getName())
-                                                            .opcClientRequestId(
-                                                                    createClientRequestId("delete"))
-                                                            .build();
-                                            client.deleteObject(deleteObjectRequest);
-                                        }
-                                    });
-                });
+                () -> blobNames.stream()
+                        .forEach(
+                                blobName -> {
+                                    List<ObjectSummary> objectSummaries;
+                                    try {
+                                        objectSummaries = client.listObjects(
+                                                        ListObjectsRequest.builder()
+                                                                .bucketName(bucketName)
+                                                                .namespaceName(namespace)
+                                                                .prefix(blobName)
+                                                                .build(), new AsyncHandler<>() {
+                                                            @Override
+                                                            public void onSuccess(ListObjectsRequest listObjectsRequest, ListObjectsResponse listObjectsResponse) {
+                                                                log.debug("successfully listing prefix:{}, bucket: {}, namespace: {}", blobName, bucketName, namespace);
+                                                            }
+
+                                                            @Override
+                                                            public void onError(ListObjectsRequest listObjectsRequest, Throwable error) {
+                                                                log.error("error listing prefix:{}, bucket: {}, namespace: {}", blobName, bucketName, namespace, error);
+                                                            }
+                                                        }).get(30, TimeUnit.SECONDS)
+                                                .getListObjects()
+                                                .getObjects();
+                                    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                                        throw new RuntimeException(e);
+                                    }
+
+                                    if (objectSummaries.size() > 1) {
+                                        log.error("will not delete {}", blobName);
+                                        throw new RuntimeException(
+                                                "Something is not right, when trying to delete objects, "
+                                                        + "we found more than one object for the same blob");
+                                    }
+                                    if (objectSummaries.size() == 1) {
+                                        final String opcClientRequestId = createClientRequestId("DELETE-ignoring-if-exists");
+                                        final ObjectSummary objectSummary = objectSummaries.get(0);
+                                        final String objectName = objectSummary.getName();
+                                        final Instant start = Instant.now();
+                                        final DeleteObjectRequest deleteObjectRequest =
+                                                DeleteObjectRequest.builder()
+                                                        .bucketName(bucketName)
+                                                        .namespaceName(namespace)
+                                                        .objectName(objectName)
+                                                        .opcClientRequestId(opcClientRequestId)
+                                                        .build();
+                                        Failsafe.with(getRetryPolicy(
+                                                objectName, opcClientRequestId, start.toEpochMilli(), "DELETE-ignoring-if-exists"))
+                                                        .run(() -> client.deleteObject(deleteObjectRequest, new AsyncHandler<DeleteObjectRequest, DeleteObjectResponse>() {
+                                                            @Override
+                                                            public void onSuccess(DeleteObjectRequest deleteObjectRequest, DeleteObjectResponse deleteObjectResponse) {
+
+                                                            }
+
+                                                            @Override
+                                                            public void onError(DeleteObjectRequest deleteObjectRequest, Throwable error) {
+
+                                                            }
+                                                        }));
+                                    }
+                                }));
     }
 
     boolean blobExists(String blobName) throws IOException {
-        final ObjectStorage client = client();
+        final ObjectStorageAsync client = client();
         try {
             SocketAccess.doPrivilegedVoidIOException(
                     () ->
+                    {
+                        try {
                             client.headObject(
                                     HeadObjectRequest.builder()
                                             .namespaceName(namespace)
                                             .bucketName(bucketName)
                                             .objectName(blobName)
-                                            .build()));
+                                            .build(), new AsyncHandler<HeadObjectRequest, HeadObjectResponse>() {
+                                        @Override
+                                        public void onSuccess(HeadObjectRequest headObjectRequest, HeadObjectResponse headObjectResponse) {
+                                            log.debug("successfully head object: {}, bucket: {}, namespace: {}", blobName, bucketName, namespace);
+                                        }
+
+                                        @Override
+                                        public void onError(HeadObjectRequest headObjectRequest, Throwable error) {
+                                            log.error("failure head object: {}, bucket: {}, namespace: {}", blobName, bucketName, namespace, error);
+                                        }
+                                    }).get(10, TimeUnit.SECONDS);
+                        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
         } catch (BmcException bmce) {
             if (bmce.getStatusCode() == NOT_FOUND) {
                 return false;
@@ -468,24 +616,35 @@ class OciObjectStorageBlobStore implements BlobStore {
         return keyPath + prefix;
     }
 
-    private List<ObjectSummary> fullListing(ObjectStorage objectStorageClient, String prefix) {
+    private List<ObjectSummary> fullListing(ObjectStorageAsync objectStorageClient, String prefix) throws ExecutionException, InterruptedException, TimeoutException {
         final List<ObjectSummary> items = new ArrayList<>();
         String start = null;
 
         log.info("Listing {}", prefix);
 
         do {
+            final String startPrefix = start;
             final String requestId = createClientRequestId("listObjects");
-            final ListObjectsResponse response =
-                    objectStorageClient.listObjects(
+            final ListObjectsResponse response = Failsafe.with(getRetryPolicy(prefix, requestId, Instant.now().toEpochMilli(), "LIST"))
+                    .get(() -> objectStorageClient.listObjects(
                             ListObjectsRequest.builder()
                                     .bucketName(bucketName)
                                     .namespaceName(namespace)
                                     .prefix(prefix)
                                     .limit(1000)
-                                    .start(start)
+                                    .start(startPrefix)
                                     .opcClientRequestId(requestId)
-                                    .build());
+                                    .build(), new AsyncHandler<>() {
+                                @Override
+                                public void onSuccess(ListObjectsRequest listObjectsRequest, ListObjectsResponse listObjectsResponse) {
+                                    log.debug("success listing bucket: {}, with namespace: {}", bucketName, namespace);
+                                }
+
+                                @Override
+                                public void onError(ListObjectsRequest listObjectsRequest, Throwable error) {
+                                    log.error("error listing bucket: {}, with namespace: {}", bucketName, namespace, error);
+                                }
+                            }).get(10, TimeUnit.SECONDS));
             items.addAll(response.getListObjects().getObjects());
             log.debug("items found: {}", response.getListObjects().getObjects());
             start = response.getListObjects().getNextStartWith();
@@ -500,16 +659,6 @@ class OciObjectStorageBlobStore implements BlobStore {
         return uuid;
     }
 
-    private UploadManager createUploadManager(ObjectStorage client) {
-        final UploadConfiguration uploadConfiguration =
-                UploadConfiguration.builder()
-                        .allowMultipartUploads(true)
-                        .allowParallelUploads(true)
-                        .build();
-
-        return new UploadManager(client, uploadConfiguration);
-    }
-
     /** Uploads a file to object storage. */
     private void putObject(
             final InputStream inputStream,
@@ -518,10 +667,10 @@ class OciObjectStorageBlobStore implements BlobStore {
             final boolean override) {
 
         try {
-            final UploadManager uploadManager = createUploadManager(client());
+            final ObjectStorageAsync client = client();
             final Instant start = Instant.now();
             String opcClientRequestId = createClientRequestId("put");
-            final PutObjectRequest.Builder putObjectRequest =
+            final PutObjectRequest putObjectRequest =
                     PutObjectRequest.builder()
                             .contentLength(blobSize)
                             .bucketName(bucketName)
@@ -532,18 +681,13 @@ class OciObjectStorageBlobStore implements BlobStore {
                             //    .delayStrategy(new ExponentialBackoffDelayStrategy()).build())
                             .opcClientRequestId(opcClientRequestId)
                             .putObjectBody(inputStream)
-                            .ifNoneMatch(override ? null : "*");
+                            .ifNoneMatch(override ? null : "*").build();
 
             Failsafe.with(
                             getRetryPolicy(
                                     objectName, opcClientRequestId, start.toEpochMilli(), "PUT"))
                     .run(
                             () -> {
-                                UploadManager.UploadRequest uploadRequest =
-                                        UploadManager.UploadRequest.builder(inputStream, blobSize)
-                                                .allowOverwrite(true)
-                                                .build(putObjectRequest.build());
-
                                 log.info(
                                         "Pushing object to '/n/{}/b/{}/o/{}'. OPC-REQUEST-ID: {}",
                                         namespace,
@@ -551,7 +695,17 @@ class OciObjectStorageBlobStore implements BlobStore {
                                         objectName,
                                         opcClientRequestId);
 
-                                uploadManager.upload(uploadRequest);
+                                client.putObject(putObjectRequest, new AsyncHandler<>() {
+                                    @Override
+                                    public void onSuccess(PutObjectRequest putObjectRequest, PutObjectResponse putObjectResponse) {
+                                        log.debug("successfully put object: {}, bucket: {}, namespace: {}", objectName, bucketName, namespace);
+                                    }
+
+                                    @Override
+                                    public void onError(PutObjectRequest putObjectRequest, Throwable error) {
+                                        log.error("error put object: {}, bucket: {}, namespace: {}", objectName, bucketName, namespace, error);
+                                    }
+                                }).get(5, TimeUnit.SECONDS);
                                 final Instant end = Instant.now();
                                 log.info(
                                         "Finished pushing object '/n/{}/b/{}/o/{}' in {} millis",
@@ -566,40 +720,15 @@ class OciObjectStorageBlobStore implements BlobStore {
         }
     }
 
-    private static boolean isRecoverable(Throwable throwable, boolean retryOn404) {
-        final BmcException bmce = unwrap(throwable).orElse(null);
-
-        if (bmce == null) {
-            // If it is not BmcException, we should not retry
-            return false;
-        }
-
-        // Table of retryable codes is available here:
-        // https://docs.cloud.oracle.com/iaas/Content/API/References/apierrors.htm
-        final int code = bmce.getStatusCode();
-        final String serviceCode = bmce.getServiceCode();
-        return bmce.isTimeout()
-                || code <= CLIENT_SIDE_ERROR_CODE
-                || code >= INTERNAL_SERVER_ERROR_CODE
-                || code == THROTTLING_ERROR_CODE
-                || retryOn404
-                        && code == NOT_FOUND
-                        && (NOT_AUTHORIZED_OR_NOT_FOUND.equals(serviceCode)
-                                || BUCKET_NOT_FOUND.equals(serviceCode))
-                || code == NOT_AUTHENTICATED
-                || code == BAD_REQUEST
-                        && RELATED_RESOURCE_NOT_AUTHORIZED_OR_NOT_FOUND.equals(serviceCode);
-    }
-
     private RetryPolicy<Object> getRetryPolicy(
             String objectName, String opcClientRequestId, long start, String op) {
         return new RetryPolicy<>()
                 .withJitter(0.2)
                 .withBackoff(100, 10000, ChronoUnit.MILLIS, 5)
                 .withMaxRetries(10)
-                .handleIf(t -> isRecoverable(t, false))
                 .onRetry(
                         (res) -> {
+                            client().refreshClient();
                             String responseOpsRequestId =
                                     unwrap(res.getLastFailure())
                                             .map(BmcException::getOpcRequestId)

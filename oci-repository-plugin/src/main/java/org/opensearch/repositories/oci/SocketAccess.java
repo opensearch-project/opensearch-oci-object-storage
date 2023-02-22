@@ -21,8 +21,8 @@ import java.security.PrivilegedExceptionAction;
 
 /**
  * This plugin uses oci api/client libraries to connect to oci cloud services. For these remote
- * calls the plugin needs {@link SocketPermission} 'connect' to establish connections. This class
- * wraps the operations requiring access in {@link AccessController#doPrivileged(PrivilegedAction)}
+ * calls the plugin needs {@link java.net.SocketPermission} 'connect' to establish connections. This class
+ * wraps the operations requiring access in {@link AccessController#doPrivileged(PrivilegedExceptionAction)}
  * blocks.
  */
 public class SocketAccess {
