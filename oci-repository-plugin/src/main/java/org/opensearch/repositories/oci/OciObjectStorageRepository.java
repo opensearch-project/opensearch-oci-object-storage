@@ -42,7 +42,7 @@ public class OciObjectStorageRepository extends BlobStoreRepository {
     static final ByteSizeValue MIN_CHUNK_SIZE = new ByteSizeValue(1, ByteSizeUnit.BYTES);
     static final ByteSizeValue MAX_CHUNK_SIZE = new ByteSizeValue(100, ByteSizeUnit.MB);
 
-    static final String TYPE = "oci";
+    public static final String TYPE = "oci";
 
     public static final Setting<String> BUCKET_SETTING =
             simpleString("bucket", Property.NodeScope, Property.Dynamic);
