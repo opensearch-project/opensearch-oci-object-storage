@@ -66,7 +66,7 @@ public class FixtureTests {
         // create the client
         Client c = ClientBuilder.newClient();
 
-        target = c.target(NonJerseyServer.BASE_URI);
+        target = c.target(NonJerseyServer.DEFAULT_BASE_URI);
         objectStorage =
                 ObjectStorageClient.builder()
                         .endpoint("http://localhost:8080")

@@ -148,39 +148,11 @@ public class OciObjectStorageClientSettings {
     }
 
     private static BasicAuthenticationDetailsProvider toAuthDetailsProvider() {
-
-        /*
-         * Work around security bug while using Instance Principal Authentication
-         * where adding the required java.net.SocketPermission to oci-repository-plugin/src/main/resources/plugin-security.policy
-         * doesn't fix the issue. See https://github.com/opensearch-project/opensearch-oci-object-storage/issues/13
-         */
-        SecurityManager sm = System.getSecurityManager();
-
         try {
-
-            AccessController.doPrivileged(
-                    (PrivilegedAction<Object>)
-                            () -> {
-                                System.setSecurityManager(
-                                        new SecurityManager() {
-
-                                            @Override
-                                            public void checkPermission(Permission perm) {
-                                                if (perm instanceof AllPermission) {
-                                                    throw new SecurityException();
-                                                }
-                                            }
-                                        });
-                                return null;
-                            });
-
             return InstancePrincipalsAuthenticationDetailsProvider.builder().build();
-
         } catch (Exception ex) {
             log.error("Failure calling toAuthDetailsProvider", ex);
             throw ex;
-        } finally {
-            System.setSecurityManager(sm);
         }
     }
 }

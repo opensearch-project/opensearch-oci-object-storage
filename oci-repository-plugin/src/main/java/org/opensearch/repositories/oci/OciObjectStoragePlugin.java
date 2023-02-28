@@ -11,7 +11,13 @@
 
 package org.opensearch.repositories.oci;
 
+import com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
+import com.oracle.bmc.http.client.HttpProvider;
+import com.oracle.bmc.http.client.jersey.JerseyHttpProvider;
+import com.oracle.bmc.objectstorage.ObjectStorageAsync;
+import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.crypto.CryptoUtils;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
@@ -21,10 +27,19 @@ import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.RepositoryPlugin;
 import org.opensearch.repositories.Repository;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.AllPermission;
+import java.security.NoSuchAlgorithmException;
+import java.security.Permission;
+import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import static org.opensearch.repositories.oci.OciObjectStorageClientSettings.DEV_REGION;
 
 /**
  * The plugin class
@@ -38,6 +53,31 @@ public class OciObjectStoragePlugin extends Plugin implements RepositoryPlugin {
     public OciObjectStoragePlugin(final Settings settings) {
         this.storageService = createStorageService();
         this.settings = settings;
+
+        /*
+         * Work around security bug while using Instance Principal Authentication
+         * where adding the required java.net.SocketPermission to oci-repository-plugin/src/main/resources/plugin-security.policy
+         * doesn't fix the issue. See https://github.com/opensearch-project/opensearch-oci-object-storage/issues/13
+         */
+        AccessController.doPrivileged(
+                (PrivilegedAction<Object>)
+                        () -> {
+                            System.setSecurityManager(
+                                    new SecurityManager() {
+
+                                        @Override
+                                        public void checkPermission(Permission perm) {
+                                            if (perm instanceof AllPermission) {
+                                                throw new SecurityException();
+                                            }
+                                        }
+                                    });
+                            return null;
+                        });
+
+
+        // Hack to force Jersey to load first as a default provider
+        HttpProvider.getDefault();
     }
 
     // overridable for tests

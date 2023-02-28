@@ -38,18 +38,44 @@ subprojects {
         maven { url "https://plugins.gradle.org/m2/" }
     }
 
+    configurations.runtimeClasspath {
+        exclude group: 'javax.annotation', module: 'javax.annotation-api'
+    }
+
     dependencies {
-        implementation gradleApi()
-        implementation localGroovy()
         implementation "net.jodah:failsafe:2.4.0"
         implementation "com.google.guava:guava:31.1-jre"
         implementation "org.apache.commons:commons-lang3:3.9"
         implementation "commons-io:commons-io:2.7"
+        /******************** Hacking transient dependencies for OCI SDK ********************/
+        // TODO: For some odd reason it seems that the OpenSearch gradle plugin overrides resolution of implementation
+        // configuration which is why this hack is needed so we can get the transient dependencies packaged properly
+
+
+        implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
+        compileClasspath("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
+        testCompileClasspath("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
+        runtimeClasspath("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
+        testRuntimeClasspath("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
+
         implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
-        implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage-generated:${sdk_version}")
-        implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage-extensions:${sdk_version}")
-        implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient:${sdk_version}")
-        implementation("com.oracle.oci.sdk:oci-java-sdk-common:${sdk_version}")
+        compileClasspath("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
+        testCompileClasspath("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
+        runtimeClasspath("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
+        testRuntimeClasspath("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
+
+        runtimeClasspath("org.slf4j:slf4j-api") {
+            version {
+                strictly "1.7.33"
+            }
+        }
+        testRuntimeClasspath("org.slf4j:slf4j-api") {
+            version {
+                strictly "1.7.33"
+            }
+        }
+        /******************************* End of transient dependency hack for OCI SDK*****************************************/
+
         implementation("com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:${jackson_version}")
         implementation("com.fasterxml.jackson.jaxrs:jackson-jaxrs-base:${jackson_version}")
         implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:${jackson_version}")

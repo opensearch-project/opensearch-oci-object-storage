@@ -10,15 +10,21 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class NonJerseyServer implements Closeable {
-    public static final String BASE_URI = "http://localhost:8080/";
-    private static int PORT = 8080;
-    private static String URL = "localhost";
+    public static final String DEFAULT_BASE_URI = "http://localhost:8080/";
+    private final static int DEFAULT_PORT = 8080;
+    private final static String URL = "localhost";
     private final HttpServer server;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final int port;
 
     public NonJerseyServer() throws IOException {
-        this.server = HttpServer.create(new InetSocketAddress(InetAddress.getByName(URL), PORT), 0);
+        this(DEFAULT_PORT);
+    }
+
+    public NonJerseyServer(int port) throws IOException {
+        this.server = HttpServer.create(new InetSocketAddress(InetAddress.getByName(URL), port), 0);
         this.server.createContext("/", new OciHttpHandler());
+        this.port = port;
     }
 
     public void start() {
@@ -37,5 +43,9 @@ public class NonJerseyServer implements Closeable {
     public void close() throws IOException {
         server.stop(0);
         executorService.shutdownNow();
+    }
+
+    public String getUrl() {
+        return String.format("http://localhost:%s/", port);
     }
 }

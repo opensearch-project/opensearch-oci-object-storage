@@ -190,7 +190,7 @@ class OciObjectStorageBlobStore implements BlobStore {
                                 public void onError(GetBucketRequest getBucketRequest, Throwable error) {
                                     log.error("failure getting bucket: {} with namespace: {}", bucketName, namespace, error);
                                 }
-                            }).get(10, TimeUnit.SECONDS);
+                            }).get();
 
             return getBucketResponse.getBucket() != null;
         } catch (final Exception e) {
