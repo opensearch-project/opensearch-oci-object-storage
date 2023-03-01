@@ -21,14 +21,17 @@ import java.security.NoSuchAlgorithmException;
 import static org.opensearch.repositories.oci.OciObjectStorageClientSettings.DEV_REGION;
 
 public class TestConstants {
-
     public static Settings getRepositorySettings() throws NoSuchAlgorithmException, IOException {
+        return getRepositorySettings("http://localhost:8080");
+    }
+
+    public static Settings getRepositorySettings(String url) throws NoSuchAlgorithmException, IOException {
         final Path keyFile = CryptoUtils.generatePrivatePublicKeyPair();
 
         return Settings.builder()
                 .put(
                         OciObjectStorageClientSettings.ENDPOINT_SETTING.getKey(),
-                        "http://localhost:8080")
+                        url)
                 .put(OciObjectStorageClientSettings.REGION_SETTING.getKey(), DEV_REGION)
                 .put(OciObjectStorageClientSettings.CREDENTIALS_FILE_SETTING.getKey(), keyFile)
                 .put(OciObjectStorageClientSettings.INSTANCE_PRINCIPAL.getKey(), false)

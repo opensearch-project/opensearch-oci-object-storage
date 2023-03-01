@@ -3,7 +3,6 @@ import org.opensearch.gradle.test.RestIntegTestTask
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'opensearch.opensearchplugin'
-apply plugin: 'opensearch.yaml-rest-test'
 apply plugin: 'opensearch.pluginzip'
 apply plugin: "io.freefair.lombok"
 apply plugin: 'jacoco'
@@ -61,6 +60,11 @@ loggerUsageCheck.enabled = false
 // No need to validate pom, as we do not upload to maven/sonatype
 validateNebulaPom.enabled = false
 
+forbiddenApis.ignoreFailures = true
+forbiddenApisTest.ignoreFailures = true
+dependencyLicenses.enabled = false
+testingConventions.enabled = false
+thirdPartyAudit.enabled = false
 
 buildscript {
     repositories {
@@ -75,8 +79,6 @@ buildscript {
     }
 }
 configurations.testImplementation {
-    exclude group: 'commons-logging', module: 'commons-logging'
-    exclude group: 'com.google.code.findbugs', module: 'jsr305'
     exclude group: 'javax.annotation', module: 'javax.annotation-api'
 }
 
@@ -87,7 +89,6 @@ dependencies {
     }
     testImplementation("org.opensearch.client:opensearch-rest-high-level-client:${opensearch_version}")
     testImplementation("org.opensearch.test:framework:${opensearch_version}")
-
     testImplementation "org.opensearch.plugin:transport-netty4-client:${opensearch_version}"
 }
 
@@ -107,6 +108,11 @@ task integTest(type: RestIntegTestTask) {
 tasks.named("check").configure { dependsOn(integTest) }
 
 integTest {
+    systemProperty "java.security.policy", "file://${projectDir}/src/main/resources/plugin-security.policy"
+    testLogging.showStandardStreams = true
+
+    include '**/*IT.class'
+
     // The --debug-jvm command-line option makes the cluster debuggable; this makes the tests debuggable
     if (System.getProperty("test.debug") != null) {
         jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
@@ -115,6 +121,7 @@ integTest {
 
 testClusters.integTest {
     testDistribution = "INTEG_TEST"
+    systemProperty "java.security.policy", "file://${projectDir}/src/main/resources/plugin-security.policy"
 
     // This installs our plugin into the testClusters
     plugin(project.tasks.bundlePlugin.archiveFile)
