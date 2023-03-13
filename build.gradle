@@ -42,6 +42,20 @@ subprojects {
         exclude group: 'javax.annotation', module: 'javax.annotation-api'
     }
 
+    // Fix dependency collision with opensearch
+    configurations.all {
+        if (it.state != Configuration.State.UNRESOLVED) return
+        resolutionStrategy {
+            force "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:${jackson_version}"
+            force "com.fasterxml.jackson.core:jackson-annotations:${jackson_version}"
+            force "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
+            force "com.fasterxml.jackson.core:jackson-core:${jackson_version}"
+            force "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
+            force "commons-codec:commons-codec:1.15"
+            force "org.apache.httpcomponents:httpcore:4.4.15"
+        }
+    }
+
     dependencies {
         implementation "net.jodah:failsafe:2.4.0"
         implementation "com.google.guava:guava:31.1-jre"
@@ -81,35 +95,6 @@ subprojects {
         implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:${jackson_version}")
 
         compileOnly "org.opensearch:opensearch:${opensearch_version}"
-
-        // Fix dependency collision with opensearch
-        implementation('com.fasterxml.jackson.module:jackson-module-jaxb-annotations') {
-            version {
-                strictly "${jackson_version}"
-            }
-        }
-        implementation("com.fasterxml.jackson.core:jackson-annotations:${jackson_version}") {
-            force = true
-        }
-        implementation("com.fasterxml.jackson.core:jackson-databind:${jackson_version}") {
-            force = true
-        }
-        implementation("com.fasterxml.jackson.core:jackson-core:${jackson_version}") {
-            force = true
-        }
-        compileOnly("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}") {
-            force = true
-        }
-
-        implementation('commons-codec:commons-codec:1.15') {
-            force = true
-        }
-
-        implementation('org.apache.httpcomponents:httpcore') {
-            version({
-                strictly('4.4.15')
-            })
-        }
 
         // Test dependencies
         testImplementation 'org.junit.jupiter:junit-jupiter-api:5.5.0'
