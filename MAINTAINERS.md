@@ -5,7 +5,10 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 ## Current Maintainers
 
 | Maintainer        | GitHub ID                                               | Affiliation |
-| ----------------- | ------------------------------------------------------- | ----------- |
-| Samuel            | [reta](https://github.com/samuel-oci)                   | Oracle      |
+|-------------------|---------------------------------------------------------| ----------- |
+| Samuel            | [samuel-oci](https://github.com/samuel-oci)             | Oracle      |
 | Sarat Vemulapalli | [saratvemulapalli](https://github.com/saratvemulapalli) | Amazon      |
 | Vacha Shah        | [VachaShah](https://github.com/VachaShah)               | Amazon      |
+| Kunal Kotwani     | [kotwanikunal](https://github.com/kotwanikunal)         | Amazon      |
+| Andrew Ross       | [andrross](https://github.com/andrross)                 | Amazon      |
+| Anas Alkouz       | [anasalkouz](https://github.com/anasalkouz)             | Amazon      |
