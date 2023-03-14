@@ -78,9 +78,6 @@ buildscript {
         classpath "org.opensearch.gradle:build-tools:${opensearch_version}"
     }
 }
-configurations.testImplementation {
-    exclude group: 'javax.annotation', module: 'javax.annotation-api'
-}
 
 dependencies {
     testImplementation(project(":oci-objectstorage-fixture")) {

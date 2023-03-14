@@ -16,7 +16,7 @@ repositories {
 }
 
 allprojects {
-    version = '2.5.0'
+    version = '2.6.0'
 }
 
 subprojects {
@@ -26,9 +26,9 @@ subprojects {
     apply plugin: 'jacoco'
 
     ext {
-        opensearch_version = System.getProperty("opensearch.version", "2.5.0")
-        sdk_version = "3.3.0"
-        jackson_version = "2.14.1"
+        opensearch_version = System.getProperty("opensearch.version", "2.6.0")
+        sdk_version = "3.7.0"
+        jackson_version = "2.14.2"
     }
 
     repositories {
@@ -36,10 +36,6 @@ subprojects {
         maven { url "https://aws.oss.sonatype.org/content/repositories/snapshots" }
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
-    }
-
-    configurations.runtimeClasspath {
-        exclude group: 'javax.annotation', module: 'javax.annotation-api'
     }
 
     // Fix dependency collision with opensearch
@@ -53,6 +49,7 @@ subprojects {
             force "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
             force "commons-codec:commons-codec:1.15"
             force "org.apache.httpcomponents:httpcore:4.4.15"
+            force "jakarta.annotation:jakarta.annotation-api:2.1.1"
         }
     }
 
