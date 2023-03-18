@@ -11,6 +11,7 @@
 
 package org.opensearch.repositories.oci;
 
+import com.oracle.bmc.objectstorage.ObjectStorage;
 import lombok.extern.log4j.Log4j2;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
 
@@ -76,12 +77,6 @@ public class OciObjectStorageRepository extends BlobStoreRepository {
     private final OciObjectStorageService storageService;
     private final BlobPath basePath;
     private final ByteSizeValue chunkSize;
-    private final String bucket;
-    private final String clientName;
-    private final String namespace;
-    private final String bucketCompartmentId;
-    private final OciObjectStorageClientSettings clientSettings;
-    private final boolean forceBucketCreation;
 
     OciObjectStorageRepository(
             final RepositoryMetadata metadata,
@@ -95,12 +90,8 @@ public class OciObjectStorageRepository extends BlobStoreRepository {
                 namedXContentRegistry,
                 clusterService,
                 recoverySettings);
-        this.storageService = storageService;
-        this.forceBucketCreation =
-                OciObjectStorageRepository.getSetting(FORCE_BUCKET_CREATION_SETTING, metadata);
-        this.bucketCompartmentId =
-                OciObjectStorageRepository.getSetting(BUCKET_COMPARTMENT_ID_SETTING, metadata);
 
+        this.storageService = storageService;
         String basePath = BASE_PATH_SETTING.get(metadata.settings());
         if (Strings.hasLength(basePath)) {
             BlobPath path = new BlobPath();
@@ -113,39 +104,11 @@ public class OciObjectStorageRepository extends BlobStoreRepository {
         }
 
         this.chunkSize = getSetting(CHUNK_SIZE_SETTING, metadata);
-        this.bucket = getSetting(BUCKET_SETTING, metadata);
-        this.clientName = CLIENT_NAME_SETTINGS.get(metadata.settings());
-        this.namespace = getSetting(NAMESPACE_SETTING, metadata);
-        this.clientSettings = new OciObjectStorageClientSettings(metadata);
-
-        log.info(
-                "Repository using "
-                        + "endpoint [{}],\n"
-                        + "namespace [{}],\n"
-                        + "bucket [{}],\n"
-                        + "base_path [{}],\n"
-                        + "chunk_size [{}],\n"
-                        + "compress [{}],\n"
-                        + "bucket_compartment_id [{}]\n",
-                clientSettings.getEndpoint(),
-                namespace,
-                bucket,
-                basePath,
-                chunkSize,
-                isCompress(),
-                bucketCompartmentId);
     }
 
     @Override
     protected OciObjectStorageBlobStore createBlobStore() {
-        return new OciObjectStorageBlobStore(
-                bucket,
-                namespace,
-                clientName,
-                bucketCompartmentId,
-                forceBucketCreation,
-                storageService,
-                clientSettings);
+        return new OciObjectStorageBlobStore(storageService, metadata);
     }
 
     @Override
