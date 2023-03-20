@@ -23,12 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-// Lots of code duplication with OciObjectStorageBlobStore and OciObjectStorageBlobContainer
-// Re-using the code will require significant refactoring which is needed on both
-// OciObjectStorageBlobStore and OciObjectStorageBlobContainer
-// TODO: refactor the code to avoid those duplications. Turn off CPD for now in this section.
-// tell cpd to start ignoring code - CPD-OFF
-@SuppressWarnings("CPD-START")
 class OciObjectStorageBlobContainer extends AbstractBlobContainer {
 
     private final OciObjectStorageBlobStore blobStore;

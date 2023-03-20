@@ -12,143 +12,255 @@
 package org.opensearch.repositories.oci;
 
 import com.oracle.bmc.objectstorage.ObjectStorage;
+import com.oracle.bmc.objectstorage.ObjectStorageAsync;
+import com.oracle.bmc.objectstorage.ObjectStorageAsyncClient;
 import com.oracle.bmc.objectstorage.ObjectStorageClient;
 import com.oracle.bmc.objectstorage.model.CreateBucketDetails;
 import com.oracle.bmc.objectstorage.requests.CreateBucketRequest;
 import com.oracle.bmc.objectstorage.requests.GetBucketRequest;
+import com.oracle.bmc.objectstorage.responses.CreateBucketResponse;
 import com.oracle.bmc.objectstorage.responses.GetBucketResponse;
+import com.oracle.bmc.responses.AsyncHandler;
 import org.assertj.core.api.Assertions;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
+import org.opensearch.common.blobstore.BlobContainer;
+import org.opensearch.common.blobstore.BlobMetadata;
+import org.opensearch.common.blobstore.BlobPath;
 import org.opensearch.common.blobstore.BlobStoreException;
-import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
+import org.opensearch.common.blobstore.DeleteResult;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.fixtures.oci.NonJerseyServer;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class OciObjectStorageBlobStoreTests {
 
-    public void tearDown() {
-        Mockito.validateMockitoUsage();
+    static NonJerseyServer nonJerseyServer;
+    @BeforeClass
+    public static void setup() throws IOException {
+        nonJerseyServer = new NonJerseyServer(8083);
+        nonJerseyServer.start();
+    }
+
+    @AfterClass
+    public static void tearDown() throws IOException {
+        nonJerseyServer.close();
+    }
+
+    @Test
+    public void testBlobStoreList_children() throws NoSuchAlgorithmException, IOException {
+        final RepositoryMetadata repositoryMetadata =
+                new RepositoryMetadata("myOciRepository",
+                        OciObjectStorageRepository.TYPE,
+                        TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "listChildren"));
+
+        final OciObjectStorageBlobStore blobStore =
+                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+
+        final String blobData1 = "myBlobData1";
+        final String blobData2 = "myBlobData1";
+        final String blobData3 = "myBlobData3";
+        final byte[] blobBytes1 = blobData1.getBytes(StandardCharsets.UTF_8);
+        final byte[] blobBytes2 = blobData2.getBytes(StandardCharsets.UTF_8);
+        final byte[] blobBytes3 = blobData3.getBytes(StandardCharsets.UTF_8);
+
+        final String blobName1 = "myNewBlob1";
+        final String blobName2 = "myNewBlob2";
+        final String blobName3 = "myNewBlob3";
+
+        final BlobPath blobPath1 = BlobPath.cleanPath().add("nested").add(blobName1);
+        final BlobPath blobPath2 = BlobPath.cleanPath().add("nested").add("nested").add(blobName2);
+        final BlobPath blobPath3 = BlobPath.cleanPath().add("nested").add("nested").add("nested").add(blobName3);
+
+        rootBlobContainer.writeBlobAtomic(blobPath1.buildAsString(), new ByteArrayInputStream(blobBytes1), blobBytes1.length, true);
+        rootBlobContainer.writeBlobAtomic(blobPath2.buildAsString(), new ByteArrayInputStream(blobBytes2), blobBytes2.length, true);
+        rootBlobContainer.writeBlobAtomic(blobPath3.buildAsString(), new ByteArrayInputStream(blobBytes3), blobBytes3.length, true);
+
+        BlobContainer child = rootBlobContainer;
+        Map<String, BlobMetadata> blobsUnder = child.listBlobs();
+        Assertions.assertThat(blobsUnder.size()).isEqualTo(3);
+        Assertions.assertThat(child.blobExists(blobName1)).isFalse();
+        Assertions.assertThat(child.blobExists(blobName2)).isFalse();
+        Assertions.assertThat(child.blobExists(blobName3)).isFalse();
+
+        Map<String, BlobContainer> children = child.children();
+        Assertions.assertThat(children.size()).isEqualTo(1);
+        child = children.get("nested");
+        blobsUnder = child.listBlobs();
+        Assertions.assertThat(blobsUnder.size()).isEqualTo(3);
+        Assertions.assertThat(child.blobExists(blobName1)).isTrue();
+        Assertions.assertThat(child.blobExists(blobName2)).isFalse();
+        Assertions.assertThat(child.blobExists(blobName3)).isFalse();
+
+        children = child.children();
+        Assertions.assertThat(children.size()).isEqualTo(1);
+        Assertions.assertThat(children.containsKey("nested")).isTrue();
+        child = children.get("nested");
+        blobsUnder = child.listBlobs();
+        Assertions.assertThat(blobsUnder.size()).isEqualTo(2);
+        Assertions.assertThat(child.blobExists(blobName1)).isFalse();
+        Assertions.assertThat(child.blobExists(blobName2)).isTrue();
+        Assertions.assertThat(child.blobExists(blobName3)).isFalse();
+
+        children = child.children();
+        Assertions.assertThat(children.size()).isEqualTo(1);
+        Assertions.assertThat(children.containsKey("nested")).isTrue();
+        child = children.get("nested");
+        blobsUnder = child.listBlobs();
+        Assertions.assertThat(blobsUnder.size()).isEqualTo(1);
+        Assertions.assertThat(child.blobExists(blobName1)).isFalse();
+        Assertions.assertThat(child.blobExists(blobName2)).isFalse();
+        Assertions.assertThat(child.blobExists(blobName3)).isTrue();
+
+        children = child.children();
+        Assertions.assertThat(children.size()).isEqualTo(0);
+    }
+
+    @Test
+    public void testBlobStoreRead_readRange() throws NoSuchAlgorithmException, IOException {
+        final RepositoryMetadata repositoryMetadata =
+                new RepositoryMetadata("myOciRepository",
+                        OciObjectStorageRepository.TYPE,
+                        TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "testBlobStoreRead_readRange"));
+
+        final OciObjectStorageBlobStore blobStore =
+                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+
+        final String blobData = "myBlobData";
+        final byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
+        final String blobName = "myNewBlob";
+        rootBlobContainer.writeBlobAtomic(blobName, new ByteArrayInputStream(blobBytes), blobBytes.length, true);
+
+        Assertions.assertThat(rootBlobContainer.blobExists(blobName)).isTrue();
+        final byte[] returnedBytes =rootBlobContainer.readBlob(blobName, 0, 2).readAllBytes();
+        final String returnedBlobData = new String(returnedBytes, StandardCharsets.UTF_8);
+        Assertions.assertThat(returnedBlobData).isEqualTo("my");
+    }
+
+    @Test
+    public void testBlobStoreDelete() throws IOException, NoSuchAlgorithmException {
+        final RepositoryMetadata repositoryMetadata =
+                new RepositoryMetadata("myOciRepository",
+                        OciObjectStorageRepository.TYPE,
+                        TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "testBlobStoreDelete"));
+
+        final OciObjectStorageBlobStore blobStore =
+                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+
+        final String blobData1 = "myBlobData1";
+        final String blobData2 = "myBlobData1";
+        final byte[] blobBytes1 = blobData1.getBytes(StandardCharsets.UTF_8);
+        final byte[] blobBytes2 = blobData2.getBytes(StandardCharsets.UTF_8);
+        final String blobName1 = "myNewBlob1";
+        final String blobName2 = "nested/myNewBlob2";
+        rootBlobContainer.writeBlobAtomic(blobName1, new ByteArrayInputStream(blobBytes1), blobBytes1.length, true);
+        rootBlobContainer.writeBlobAtomic(blobName2, new ByteArrayInputStream(blobBytes2), blobBytes2.length, true);
+
+        Assertions.assertThat(rootBlobContainer.blobExists(blobName1)).isTrue();
+        Assertions.assertThat(rootBlobContainer.blobExists(blobName2)).isTrue();
+        Assertions.assertThat(rootBlobContainer.listBlobs().size()).isEqualTo(2);
+
+        final Map<String, BlobContainer> children = rootBlobContainer.children();
+        Assertions.assertThat(children.size()).isEqualTo(1);
+        Assertions.assertThat(children.containsKey("nested"));
+        children.get("nested").delete();
+        Assertions.assertThat(rootBlobContainer.blobExists(blobName1)).isTrue();
+        Assertions.assertThat(rootBlobContainer.listBlobs().size()).isEqualTo(1);
+        final String returnedBlobData = new String(rootBlobContainer.readBlob(blobName1).readAllBytes(), StandardCharsets.UTF_8);
+        Assertions.assertThat(returnedBlobData).isEqualTo(blobData1);
+    }
+
+    @Test
+    public void testBlobStoreWriteBlob() throws NoSuchAlgorithmException, IOException {
+        final RepositoryMetadata repositoryMetadata =
+                new RepositoryMetadata("myOciRepository",
+                        OciObjectStorageRepository.TYPE,
+                        TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "testBlobStoreWriteBlob"));
+
+        final OciObjectStorageBlobStore blobStore =
+                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+
+        final String blobData = "myBlobData";
+        final byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
+        final String blobName = "myNewBlob";
+        rootBlobContainer.writeBlob(blobName, new ByteArrayInputStream(blobBytes), blobBytes.length, true);
+
+        Assertions.assertThat(rootBlobContainer.blobExists(blobName)).isTrue();
+        final String returnedBlobData = new String(rootBlobContainer.readBlob(blobName).readAllBytes(), StandardCharsets.UTF_8);
+        Assertions.assertThat(returnedBlobData).isEqualTo(blobData);
+    }
+
+    @Test
+    public void testBlobWriteBlob_atomic() throws IOException, NoSuchAlgorithmException {
+        final RepositoryMetadata repositoryMetadata =
+                new RepositoryMetadata("myOciRepository",
+                        OciObjectStorageRepository.TYPE,
+                        TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "testBlobWriteBlob_atomic"));
+
+        final OciObjectStorageBlobStore blobStore =
+                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+
+        final String blobData = "myBlobData";
+        final byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
+        final String blobName = "myNewBlob";
+        rootBlobContainer.writeBlobAtomic(blobName, new ByteArrayInputStream(blobBytes), blobBytes.length, true);
+
+        Assertions.assertThat(rootBlobContainer.blobExists(blobName)).isTrue();
+        final String returnedBlobData = new String(rootBlobContainer.readBlob(blobName).readAllBytes(), StandardCharsets.UTF_8);
+        Assertions.assertThat(returnedBlobData).isEqualTo(blobData);
     }
 
     @Test
     public void testBlobStoreConstruction_forceBucketCreation()
             throws IOException, NoSuchAlgorithmException {
-        // Setup
-        final ObjectStorage mockOciObjectStorageClient = Mockito.mock(ObjectStorage.class);
-        final OciObjectStorageService mockOciObjectStorageService =
-                Mockito.mock(OciObjectStorageService.class);
-        Mockito.when(mockOciObjectStorageService.client(Mockito.any()))
-                .thenAnswer((Answer<ObjectStorage>) invocationOnMock -> mockOciObjectStorageClient);
+        final RepositoryMetadata repositoryMetadata =
+                new RepositoryMetadata("myOciRepository",
+                        OciObjectStorageRepository.TYPE,
+                        TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "forceBucketCreationTest", true));
 
-        Mockito.when(mockOciObjectStorageClient.getBucket(Mockito.any()))
-                .thenReturn(GetBucketResponse.builder().build());
-
-        final String providedBucketName = "myTestBucketName";
-        final String providedNamespace = "myTestNamespace";
-        final String providedClientName = "myTestClientName";
-        final String providedBucketCompartmentId = "myTestBucketCompartmentId";
-        final OciObjectStorageClientSettings ociObjectStorageClientSettings =
-                new OciObjectStorageClientSettings(
-                        new RepositoryMetadata(
-                                "myRepoMetadata",
-                                "repository",
-                                TestConstants.getRepositorySettings()));
         final OciObjectStorageBlobStore blobStore =
-                new OciObjectStorageBlobStore(
-                        providedBucketName,
-                        providedNamespace,
-                        providedClientName,
-                        providedBucketCompartmentId,
-                        true,
-                        mockOciObjectStorageService, // storageService
-                        ociObjectStorageClientSettings // clientSettings
-                        );
+                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
 
-        // 1. Make sure we verified bucket exists
-        final ArgumentCaptor<GetBucketRequest> getBucketRequestArgumentCaptor =
-                ArgumentCaptor.forClass(GetBucketRequest.class);
-        Mockito.verify(mockOciObjectStorageClient, Mockito.times(1))
-                .getBucket(getBucketRequestArgumentCaptor.capture());
-        final GetBucketRequest capturedGetBucketRequest =
-                getBucketRequestArgumentCaptor.getAllValues().get(0);
-        Assertions.assertThat(capturedGetBucketRequest.getNamespaceName())
-                .isEqualTo(providedNamespace);
-        Assertions.assertThat(capturedGetBucketRequest.getBucketName())
-                .isEqualTo(providedBucketName);
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
 
-        // 2. Make sure bucket was created
-        final ArgumentCaptor<CreateBucketRequest> createBucketRequestArgumentCaptor =
-                ArgumentCaptor.forClass(CreateBucketRequest.class);
-        Mockito.verify(mockOciObjectStorageClient, Mockito.times(1))
-                .createBucket(createBucketRequestArgumentCaptor.capture());
-        final CreateBucketRequest capturedCreateBucketRequest =
-                createBucketRequestArgumentCaptor.getAllValues().get(0);
-        Assertions.assertThat(capturedCreateBucketRequest.getNamespaceName())
-                .isEqualTo(providedNamespace);
-        final CreateBucketDetails capturedCreateBucketDetails =
-                capturedCreateBucketRequest.getCreateBucketDetails();
-        Assertions.assertThat(capturedCreateBucketDetails.getName()).isEqualTo(providedBucketName);
-        Assertions.assertThat(capturedCreateBucketDetails.getCompartmentId())
-                .isEqualTo(providedBucketCompartmentId);
-        Assertions.assertThat(capturedCreateBucketDetails.getStorageTier())
-                .isEqualTo(CreateBucketDetails.StorageTier.Standard);
+        Map<String, BlobContainer> results = rootBlobContainer.children();
+        Assertions.assertThat(results.values().size()).isEqualTo(0);
     }
 
     @Test
     public void testBlobStoreConstruction_DoNotForceBucketCreation()
             throws IOException, NoSuchAlgorithmException {
-        // Setup
-        final ObjectStorageClient mockOciObjectStorageClient =
-                Mockito.mock(ObjectStorageClient.class);
-        final OciObjectStorageService mockOciObjectStorageService =
-                Mockito.mock(OciObjectStorageService.class);
-        Mockito.when(mockOciObjectStorageService.client(Mockito.any()))
-                .thenAnswer(
-                        (Answer<ObjectStorageClient>)
-                                invocationOnMock -> mockOciObjectStorageClient);
-        Mockito.when(mockOciObjectStorageClient.getBucket(Mockito.any()))
-                .thenReturn(GetBucketResponse.builder().build());
+        final RepositoryMetadata repositoryMetadata =
+                new RepositoryMetadata("myOciRepository",
+                        OciObjectStorageRepository.TYPE,
+                        TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "forceBucketCreationTest", false));
 
-        final String providedBucketName = "myTestBucketName";
-        final String providedNamespace = "myTestNamespace";
-        final String providedClientName = "myTestClientName";
-        final String providedBucketCompartmentId = "myTestBucketCompartmentId";
-        final OciObjectStorageClientSettings ociObjectStorageClientSettings =
-                new OciObjectStorageClientSettings(
-                        new RepositoryMetadata(
-                                "myRepoMetadata",
-                                "repository",
-                                TestConstants.getRepositorySettings()));
-        Assertions.assertThatThrownBy(
-                        () ->
-                                new OciObjectStorageBlobStore(
-                                        providedBucketName,
-                                        providedNamespace,
-                                        providedClientName,
-                                        providedBucketCompartmentId,
-                                        false,
-                                        mockOciObjectStorageService, // storageService
-                                        ociObjectStorageClientSettings // clientSettings
-                                        ))
-                .isInstanceOf(BlobStoreException.class);
-
-        // 1. Make sure we verified bucket exists
-        final ArgumentCaptor<GetBucketRequest> getBucketRequestArgumentCaptor =
-                ArgumentCaptor.forClass(GetBucketRequest.class);
-        Mockito.verify(mockOciObjectStorageClient, Mockito.times(1))
-                .getBucket(getBucketRequestArgumentCaptor.capture());
-        final GetBucketRequest capturedGetBucketRequest =
-                getBucketRequestArgumentCaptor.getAllValues().get(0);
-        Assertions.assertThat(capturedGetBucketRequest.getNamespaceName())
-                .isEqualTo(providedNamespace);
-        Assertions.assertThat(capturedGetBucketRequest.getBucketName())
-                .isEqualTo(providedBucketName);
-
-        // 2. Make sure no bucket was created
-        Mockito.verify(mockOciObjectStorageClient, Mockito.times(0)).createBucket(Mockito.any());
+        Assertions.assertThatThrownBy(() ->
+                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata)).hasMessageContaining("Bucket [forceBucketCreationTest] does not exist");
     }
 }

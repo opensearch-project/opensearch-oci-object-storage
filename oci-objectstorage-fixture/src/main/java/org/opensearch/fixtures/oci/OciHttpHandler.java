@@ -250,17 +250,21 @@ public class OciHttpHandler implements HttpHandler {
         Preconditions.checkArgument(buckets.containsKey(bucketName), "Bucket doesn't exist");
         final LocalBucket bucket = buckets.get(bucketName);
         final OSObject object = bucket.getObject(objectName);
-        exchange.getResponseHeaders().add("Content-Type", "application/json");
-        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
-        if (range != null) {
-            exchange.getResponseBody()
-                    .write(Arrays.copyOfRange(object.getBytes(),
-                            range.getStartByte().intValue(), range.getEndByte().intValue() + 1));
-        } else {
-            exchange.getResponseBody().write(object.getBytes());
-        }
+        if (object != null) {
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
+            if (range != null) {
+                exchange.getResponseBody()
+                        .write(Arrays.copyOfRange(object.getBytes(),
+                                range.getStartByte().intValue(), range.getEndByte().intValue() + 1));
+            } else {
+                exchange.getResponseBody().write(object.getBytes());
+            }
 
-        exchange.close();
+            exchange.close();
+        } else {
+            sendError(exchange, RestStatus.NOT_FOUND, "404", "Object not found");
+        }
     }
 
     private void headObject(

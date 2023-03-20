@@ -18,7 +18,6 @@ import lombok.extern.log4j.Log4j2;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
 import org.opensearch.common.io.Streams;
 
 import java.io.ByteArrayInputStream;
@@ -101,7 +100,7 @@ public class FixtureTests {
                                                 .name(BUCKET_NAME)
                                                 .build())
                                 .build());
-        Assertions.assertEquals(BUCKET_NAME, createBucketResponse.getBucket().getName());
+        assertEquals(BUCKET_NAME, createBucketResponse.getBucket().getName());
 
         // 2. Create object
         final PutObjectResponse putObjectResponse =
@@ -115,7 +114,7 @@ public class FixtureTests {
                                                 "myContent".getBytes(StandardCharsets.UTF_8)))
                                 .build());
 
-        Assertions.assertEquals(200, putObjectResponse.get__httpStatusCode__());
+        assertEquals(200, putObjectResponse.get__httpStatusCode__());
         log.info("putObjectResponse: {}", putObjectResponse);
 
         // 3. List object
@@ -127,8 +126,8 @@ public class FixtureTests {
                                 .prefix("myPrefix")
                                 .build());
         log.info("listObjectsResponse: {}", listObjectsResponse);
-        Assertions.assertEquals(1, listObjectsResponse.getListObjects().getObjects().size());
-        Assertions.assertEquals(
+        assertEquals(1, listObjectsResponse.getListObjects().getObjects().size());
+        assertEquals(
                 "/myPrefix/myObject",
                 listObjectsResponse.getListObjects().getObjects().get(0).getName());
 
@@ -141,7 +140,7 @@ public class FixtureTests {
                                 .objectName("/myPrefix/myObject")
                                 .build());
         log.info("getObjectResponse: {}", getObjectResponse);
-        Assertions.assertEquals(
+        assertEquals(
                 "myContent", Streams.readFully(getObjectResponse.getInputStream()).utf8ToString());
 
         // 4.1
@@ -154,7 +153,7 @@ public class FixtureTests {
                                 .objectName("/myPrefix/myObject")
                                 .build());
         log.info("getObjectResponse: {}", getObjectResponse);
-        Assertions.assertEquals(
+        assertEquals(
                 "my", Streams.readFully(getObjectResponseWithRange.getInputStream()).utf8ToString());
 
         // 5. Delete object
@@ -167,7 +166,7 @@ public class FixtureTests {
                                 .build());
         log.info("deleteObjectResponse: {}", deleteObjectResponse);
 
-        Assertions.assertEquals(200, deleteObjectResponse.get__httpStatusCode__());
+        assertEquals(200, deleteObjectResponse.get__httpStatusCode__());
 
         // 6. List object after delete
         final ListObjectsResponse listObjectsResponse2 =
@@ -178,6 +177,6 @@ public class FixtureTests {
                                 .prefix("myPrefix")
                                 .build());
         log.info("listObjectsResponse: {}", listObjectsResponse2);
-        Assertions.assertEquals(0, listObjectsResponse2.getListObjects().getObjects().size());
+        assertEquals(0, listObjectsResponse2.getListObjects().getObjects().size());
     }
 }

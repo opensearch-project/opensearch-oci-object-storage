@@ -22,13 +22,7 @@ import org.opensearch.common.settings.Setting;
 
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.function.Supplier;
-
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.security.Permission;
-import java.security.AllPermission;
 
 import static org.opensearch.common.settings.Setting.boolSetting;
 import static org.opensearch.common.settings.Setting.simpleString;

@@ -11,13 +11,8 @@
 
 package org.opensearch.repositories.oci;
 
-import com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
 import com.oracle.bmc.http.client.HttpProvider;
-import com.oracle.bmc.http.client.jersey.JerseyHttpProvider;
-import com.oracle.bmc.objectstorage.ObjectStorageAsync;
-import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.crypto.CryptoUtils;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
@@ -27,19 +22,14 @@ import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.RepositoryPlugin;
 import org.opensearch.repositories.Repository;
 
-import java.io.IOException;
-import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.AllPermission;
-import java.security.NoSuchAlgorithmException;
 import java.security.Permission;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
-import static org.opensearch.repositories.oci.OciObjectStorageClientSettings.DEV_REGION;
 
 /**
  * The plugin class

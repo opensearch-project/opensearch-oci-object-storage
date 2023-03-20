@@ -12,6 +12,7 @@
 package org.opensearch.repositories.oci;
 
 import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
+import static org.opensearch.repositories.oci.OciObjectStorageRepository.*;
 
 import com.oracle.bmc.model.BmcException;
 import com.oracle.bmc.model.Range;
@@ -30,6 +31,7 @@ import com.oracle.bmc.responses.AsyncHandler;
 import lombok.extern.log4j.Log4j2;
 import net.jodah.failsafe.Failsafe;
 import net.jodah.failsafe.RetryPolicy;
+import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.common.blobstore.BlobContainer;
 import org.opensearch.common.blobstore.BlobMetadata;
 
@@ -69,18 +71,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @SuppressWarnings("CPD-START")
 @Log4j2
 class OciObjectStorageBlobStore implements BlobStore {
-
-    private static final int BAD_REQUEST = 400;
-    private static final int NOT_AUTHENTICATED = 401;
     private static final int NOT_FOUND = 404;
-    private static final int THROTTLING_ERROR_CODE = 429;
-    private static final int INTERNAL_SERVER_ERROR_CODE = 500;
-    private static final int CLIENT_SIDE_ERROR_CODE = 0;
-
-    private static final String NOT_AUTHORIZED_OR_NOT_FOUND = "NotAuthorizedOrNotFound";
-    private static final String BUCKET_NOT_FOUND = "BucketNotFound";
-    private static final String RELATED_RESOURCE_NOT_AUTHORIZED_OR_NOT_FOUND =
-            "RelatedResourceNotAuthorizedOrNotFound";
 
     // The recommended maximum size of a blob that should be uploaded in a single
     // request. Larger files should be uploaded over multiple requests
@@ -121,19 +112,15 @@ class OciObjectStorageBlobStore implements BlobStore {
     private final OciObjectStorageService storageService;
     private final OciObjectStorageClientSettings clientSettings;
 
-    OciObjectStorageBlobStore(
-            final String bucketName,
-            final String namespace,
-            final String clientName,
-            final String bucketCompartmentId,
-            final boolean forceBucketCreation,
-            final OciObjectStorageService storageService,
-            final OciObjectStorageClientSettings clientSettings) {
-        this.bucketName = bucketName;
-        this.clientName = clientName;
+    OciObjectStorageBlobStore(final OciObjectStorageService storageService, final RepositoryMetadata metadata) {
         this.storageService = storageService;
-        this.namespace = namespace;
-        this.clientSettings = clientSettings;
+        this.bucketName = getSetting(BUCKET_SETTING, metadata);
+        this.clientName = CLIENT_NAME_SETTINGS.get(metadata.settings());
+        this.namespace = getSetting(NAMESPACE_SETTING, metadata);
+        this.clientSettings = new OciObjectStorageClientSettings(metadata);
+        final String bucketCompartmentId =
+                OciObjectStorageRepository.getSetting(BUCKET_COMPARTMENT_ID_SETTING, metadata);
+        final boolean forceBucketCreation = OciObjectStorageRepository.getSetting(FORCE_BUCKET_CREATION_SETTING, metadata);
         if (!doesBucketExist(namespace, bucketName)) {
 
             if (forceBucketCreation) {
@@ -273,6 +260,7 @@ class OciObjectStorageBlobStore implements BlobStore {
      * @param prefix prefix of the blobs to list.
      * @return a map of blob names and their metadata.
      */
+    // TODO: revisit whether this needs to list only immediate files under the directory (like FSBlobContainer) or behave like S3BlobContainer (current behavior) that returns every prefix
     Map<String, BlobMetadata> listBlobsByPrefix(String path, String prefix) throws IOException {
         log.info("attempting to list blobs by path: {}, prefix: {} ", path, prefix);
         final String pathPrefix = buildKey(path, prefix);
@@ -320,7 +308,7 @@ class OciObjectStorageBlobStore implements BlobStore {
                                                         .getName()
                                                         .substring(pathStr.length())
                                                         .split("/"))
-                                .filter(name -> name.length > 0 && !name[0].isEmpty())
+                                .filter(name -> name.length > 1 && !name[0].isEmpty())
                                 .map(name -> name[0])
                                 .distinct()
                                 .forEach(
@@ -483,18 +471,41 @@ class OciObjectStorageBlobStore implements BlobStore {
                                 Failsafe.with(getRetryPolicy(
                                                 objectName, opcClientRequestId, start.toEpochMilli(), "DELETE"))
                                         .run(() ->  {
-                                            client.deleteObject(deleteObjectRequest, new AsyncHandler<>() {
-                                                @Override
-                                                public void onSuccess(DeleteObjectRequest deleteObjectRequest, DeleteObjectResponse deleteObjectResponse) {
-                                                    log.info("received success for delete");
-                                                }
+                                            try {
+                                                client.deleteObject(deleteObjectRequest, new AsyncHandler<>() {
+                                                    @Override
+                                                    public void onSuccess(DeleteObjectRequest deleteObjectRequest, DeleteObjectResponse deleteObjectResponse) {
+                                                        log.info("received success for delete");
+                                                    }
 
-                                                @Override
-                                                public void onError(DeleteObjectRequest deleteObjectRequest, Throwable error) {
-                                                    log.info("received error for delete");
+                                                    @Override
+                                                    public void onError(DeleteObjectRequest deleteObjectRequest, Throwable error) {
+                                                        log.info("received error for delete");
+                                                    }
+                                                }).get(10, TimeUnit.SECONDS);
+                                                deletedBlobs.incrementAndGet();
+                                            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                                                if (e.getCause() instanceof BmcException) {
+                                                    final BmcException bmcEx =  (BmcException)e.getCause();
+                                                    if (bmcEx.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                                                        log.info("blob couldn't be found to delete, doing nothing");
+                                                    } else {
+                                                        log.error(
+                                                                "Couldn't delete blob: n:{}/b:{}/o:{} exists. unrecognized error code in response",
+                                                                namespace,
+                                                                bucketName,
+                                                                objectName,
+                                                                e);
+                                                        throw new BlobStoreException(
+                                                                "Unable to check if blob ["
+                                                                        + objectName
+                                                                        + "] exists, unrecognized error code in response",
+                                                                e);
+                                                    }
                                                 }
-                                            }).get(10, TimeUnit.SECONDS);
-                                            deletedBlobs.incrementAndGet();
+                                                throw new BlobStoreException(
+                                                        "Unable to delete if blob [" + objectName + "] exists", e);
+                                            }
                                         });
                             });
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -577,35 +588,44 @@ class OciObjectStorageBlobStore implements BlobStore {
     boolean blobExists(String blobName) throws IOException {
         final ObjectStorageAsync client = client();
         try {
-            SocketAccess.doPrivilegedVoidIOException(
-                    () ->
-                    {
-                        try {
-                            client.headObject(
-                                    HeadObjectRequest.builder()
-                                            .namespaceName(namespace)
-                                            .bucketName(bucketName)
-                                            .objectName(blobName)
-                                            .build(), new AsyncHandler<HeadObjectRequest, HeadObjectResponse>() {
-                                        @Override
-                                        public void onSuccess(HeadObjectRequest headObjectRequest, HeadObjectResponse headObjectResponse) {
-                                            log.debug("successfully head object: {}, bucket: {}, namespace: {}", blobName, bucketName, namespace);
-                                        }
-
-                                        @Override
-                                        public void onError(HeadObjectRequest headObjectRequest, Throwable error) {
-                                            log.error("failure head object: {}, bucket: {}, namespace: {}", blobName, bucketName, namespace, error);
-                                        }
-                                    }).get(10, TimeUnit.SECONDS);
-                        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                            throw new RuntimeException(e);
+            client.headObject(
+                    HeadObjectRequest.builder()
+                            .namespaceName(namespace)
+                            .bucketName(bucketName)
+                            .objectName(blobName)
+                            .build(), new AsyncHandler<>() {
+                        @Override
+                        public void onSuccess(HeadObjectRequest headObjectRequest, HeadObjectResponse headObjectResponse) {
+                            log.debug("successfully head object: {}, bucket: {}, namespace: {}", blobName, bucketName, namespace);
                         }
-                    });
-        } catch (BmcException bmce) {
-            if (bmce.getStatusCode() == NOT_FOUND) {
-                return false;
+
+                        @Override
+                        public void onError(HeadObjectRequest headObjectRequest, Throwable error) {
+                            log.error("failure head object: {}, bucket: {}, namespace: {}", blobName, bucketName, namespace, error);
+                        }
+                    }).get(10, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            if (e.getCause() instanceof BmcException) {
+                final BmcException bmcEx =  (BmcException)e.getCause();
+                if (bmcEx.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                    log.info("blob couldn't be found");
+                    return false;
+                } else {
+                    log.error(
+                            "Couldn't check if blob: n:{}/b:{}/o:{} exists. unrecognized error code in response",
+                            namespace,
+                            bucketName,
+                            blobName,
+                            e);
+                    throw new BlobStoreException(
+                            "Unable to check if blob ["
+                                    + blobName
+                                    + "] exists, unrecognized error code in response",
+                            e);
+                }
             }
-            throw bmce;
+            throw new BlobStoreException(
+                    "Unable to check if blob [" + blobName + "] exists", e);
         }
 
         return true;

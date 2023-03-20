@@ -30,14 +30,6 @@ public class LocalBucket {
     }
 
     public OSObject getObject(String objectName) {
-        if (!prefixToObjectMap.containsKey(objectName)) {
-            throw new BmcException(
-                    HttpURLConnection.HTTP_NOT_FOUND,
-                    "object not found",
-                    "object not found",
-                    "object not found");
-        }
-
         return prefixToObjectMap.get(objectName);
     }
 

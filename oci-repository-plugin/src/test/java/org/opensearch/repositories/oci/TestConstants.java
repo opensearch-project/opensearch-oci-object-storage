@@ -25,7 +25,7 @@ public class TestConstants {
         return getRepositorySettings("http://localhost:8080");
     }
 
-    public static Settings getRepositorySettings(String url) throws NoSuchAlgorithmException, IOException {
+    public static Settings getRepositorySettings(String url, String bucketName, boolean forceBucketCreation) throws NoSuchAlgorithmException, IOException {
         final Path keyFile = CryptoUtils.generatePrivatePublicKeyPair();
 
         return Settings.builder()
@@ -42,11 +42,19 @@ public class TestConstants {
                 .put(
                         OciObjectStorageRepository.BUCKET_COMPARTMENT_ID_SETTING.getKey(),
                         "bucket_compartment_id")
-                .put(OciObjectStorageRepository.BUCKET_SETTING.getKey(), "mySnapshotsBucket")
-                .put(OciObjectStorageRepository.FORCE_BUCKET_CREATION_SETTING.getKey(), true)
+                .put(OciObjectStorageRepository.BUCKET_SETTING.getKey(), bucketName)
+                .put(OciObjectStorageRepository.FORCE_BUCKET_CREATION_SETTING.getKey(), forceBucketCreation)
                 .put(
                         OciObjectStorageRepository.NAMESPACE_SETTING.getKey(),
                         "myObjectStorageNamespace")
                 .build();
+    }
+
+    public static Settings getRepositorySettings(String url) throws NoSuchAlgorithmException, IOException {
+        return getRepositorySettings(url, "mySnapshotBucket", true);
+    }
+
+    public static Settings getRepositorySettings(String url, String bucketName) throws NoSuchAlgorithmException, IOException {
+        return getRepositorySettings(url, bucketName, true);
     }
 }
