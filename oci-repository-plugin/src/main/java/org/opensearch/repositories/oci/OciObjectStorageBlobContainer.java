@@ -26,17 +26,15 @@ import java.util.stream.Collectors;
 class OciObjectStorageBlobContainer extends AbstractBlobContainer {
 
     private final OciObjectStorageBlobStore blobStore;
-    private final String path;
 
     OciObjectStorageBlobContainer(BlobPath path, OciObjectStorageBlobStore blobStore) {
         super(path);
         this.blobStore = blobStore;
-        this.path = path.buildAsString();
     }
 
     @Override
     public Map<String, BlobMetadata> listBlobs() throws IOException {
-        return blobStore.listBlobs(path);
+        return blobStore.listBlobs(path().buildAsString());
     }
 
     @Override
@@ -46,7 +44,7 @@ class OciObjectStorageBlobContainer extends AbstractBlobContainer {
 
     @Override
     public Map<String, BlobMetadata> listBlobsByPrefix(String prefix) throws IOException {
-        return blobStore.listBlobsByPrefix(path, prefix);
+        return blobStore.listBlobsByPrefix(path().buildAsString(), prefix);
     }
 
     @Override
@@ -61,7 +59,7 @@ class OciObjectStorageBlobContainer extends AbstractBlobContainer {
 
     @Override
     public InputStream readBlob(String blobName, long position, long length) throws IOException {
-        return blobStore.readBlob(blobName, position, length);
+        return blobStore.readBlob(buildKey(blobName), position, length);
     }
 
     @Override
@@ -91,6 +89,6 @@ class OciObjectStorageBlobContainer extends AbstractBlobContainer {
 
     private String buildKey(String blobName) {
         assert blobName != null;
-        return path + blobName;
+        return path().add(blobName).buildAsString();
     }
 }

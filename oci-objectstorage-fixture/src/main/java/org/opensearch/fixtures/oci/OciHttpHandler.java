@@ -8,6 +8,7 @@ import com.oracle.bmc.objectstorage.model.Bucket;
 import com.oracle.bmc.objectstorage.model.CreateBucketDetails;
 import com.oracle.bmc.objectstorage.model.ListObjects;
 import com.oracle.bmc.objectstorage.model.ObjectSummary;
+import com.oracle.bmc.objectstorage.responses.HeadObjectResponse;
 import com.oracle.bmc.util.internal.StringUtils;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -281,7 +282,15 @@ public class OciHttpHandler implements HttpHandler {
         if (object != null) {
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
-            exchange.getResponseBody().write(object.getBytes());
+            final HeadObjectResponse headObjectResponse = HeadObjectResponse.builder()
+                    .contentLength((long) object.getBytes().length)
+                    .build();
+            final String str = MAPPER.writeValueAsString(headObjectResponse);
+            final byte[] response = str.getBytes(StandardCharsets.UTF_8);
+
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
+            exchange.getResponseBody().write(response);
             exchange.close();
         } else {
             sendError(exchange, RestStatus.NOT_FOUND, "404", "Object not found");

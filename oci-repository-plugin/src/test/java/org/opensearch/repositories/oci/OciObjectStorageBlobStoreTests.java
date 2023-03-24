@@ -30,12 +30,6 @@ import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.common.blobstore.BlobContainer;
 import org.opensearch.common.blobstore.BlobMetadata;
 import org.opensearch.common.blobstore.BlobPath;
-import org.opensearch.common.blobstore.BlobStoreException;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
-import org.mockito.stubbing.Answer;
-import org.opensearch.common.blobstore.DeleteResult;
-import org.opensearch.common.settings.Settings;
 import org.opensearch.fixtures.oci.NonJerseyServer;
 
 import java.io.ByteArrayInputStream;
@@ -43,10 +37,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class OciObjectStorageBlobStoreTests {
 
@@ -72,7 +62,8 @@ public class OciObjectStorageBlobStoreTests {
         final OciObjectStorageBlobStore blobStore =
                 new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
 
-        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+        final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
 
         final String blobData1 = "myBlobData1";
         final String blobData2 = "myBlobData1";
@@ -143,7 +134,8 @@ public class OciObjectStorageBlobStoreTests {
         final OciObjectStorageBlobStore blobStore =
                 new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
 
-        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+        final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
 
         final String blobData = "myBlobData";
         final byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
@@ -166,7 +158,8 @@ public class OciObjectStorageBlobStoreTests {
         final OciObjectStorageBlobStore blobStore =
                 new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
 
-        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+        final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
 
         final String blobData1 = "myBlobData1";
         final String blobData2 = "myBlobData1";
@@ -201,7 +194,8 @@ public class OciObjectStorageBlobStoreTests {
         final OciObjectStorageBlobStore blobStore =
                 new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
 
-        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+        final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
 
         final String blobData = "myBlobData";
         final byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
@@ -223,7 +217,8 @@ public class OciObjectStorageBlobStoreTests {
         final OciObjectStorageBlobStore blobStore =
                 new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
 
-        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+        final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
 
         final String blobData = "myBlobData";
         final byte[] blobBytes = blobData.getBytes(StandardCharsets.UTF_8);
@@ -246,7 +241,8 @@ public class OciObjectStorageBlobStoreTests {
         final OciObjectStorageBlobStore blobStore =
                 new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
 
-        final BlobContainer rootBlobContainer = blobStore.blobContainer(BlobPath.cleanPath());
+        final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
+        final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
 
         Map<String, BlobContainer> results = rootBlobContainer.children();
         Assertions.assertThat(results.values().size()).isEqualTo(0);
