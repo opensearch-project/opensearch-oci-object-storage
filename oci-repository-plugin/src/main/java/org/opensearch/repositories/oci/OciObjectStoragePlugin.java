@@ -12,6 +12,14 @@
 package org.opensearch.repositories.oci;
 
 import com.oracle.bmc.http.client.HttpProvider;
+import java.security.AccessController;
+import java.security.AllPermission;
+import java.security.Permission;
+import java.security.PrivilegedAction;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
@@ -22,18 +30,7 @@ import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.RepositoryPlugin;
 import org.opensearch.repositories.Repository;
 
-import java.security.AccessController;
-import java.security.AllPermission;
-import java.security.Permission;
-import java.security.PrivilegedAction;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-/**
- * The plugin class
- */
+/** The plugin class */
 public class OciObjectStoragePlugin extends Plugin implements RepositoryPlugin {
 
     // package-private for tests
@@ -64,7 +61,6 @@ public class OciObjectStoragePlugin extends Plugin implements RepositoryPlugin {
                                     });
                             return null;
                         });
-
 
         // Hack to force Jersey to load first as a default provider
         HttpProvider.getDefault();

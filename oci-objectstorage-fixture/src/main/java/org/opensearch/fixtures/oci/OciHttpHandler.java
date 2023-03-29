@@ -1,5 +1,8 @@
 package org.opensearch.fixtures.oci;
 
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES;
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.google.common.base.Preconditions;
@@ -13,22 +16,17 @@ import com.oracle.bmc.util.internal.StringUtils;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import lombok.extern.log4j.Log4j2;
-import org.opensearch.common.bytes.BytesReference;
-
-import org.opensearch.common.io.Streams;
-import org.opensearch.common.regex.Regex;
-import org.opensearch.rest.RestStatus;
-import org.opensearch.rest.RestUtils;
-
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES;
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+import lombok.extern.log4j.Log4j2;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.io.Streams;
+import org.opensearch.common.regex.Regex;
+import org.opensearch.rest.RestStatus;
+import org.opensearch.rest.RestUtils;
 
 @Log4j2
 public class OciHttpHandler implements HttpHandler {
@@ -52,7 +50,11 @@ public class OciHttpHandler implements HttpHandler {
         final String path = exchange.getRequestURI().getPath();
         final String opcRequestId = exchange.getRequestHeaders().getFirst("Opc-request-id");
         final String requestMethod = exchange.getRequestMethod();
-        log.debug("request received in fixture with method: {}, path: {}, opcRequestId: {}", requestMethod, path, opcRequestId);
+        log.debug(
+                "request received in fixture with method: {}, path: {}, opcRequestId: {}",
+                requestMethod,
+                path,
+                opcRequestId);
         final String[] pathParams = path.split("/");
         try {
             if (path.equals("/n/testResource") && exchange.getRequestMethod().equals("GET")) {
@@ -241,7 +243,11 @@ public class OciHttpHandler implements HttpHandler {
     }
 
     private void getObject(
-            String namespaceName, String bucketName, String objectName, Range range, HttpExchange exchange)
+            String namespaceName,
+            String bucketName,
+            String objectName,
+            Range range,
+            HttpExchange exchange)
             throws IOException {
         log.info(
                 "Get object with namespaceName:{}, bucketName: {}, objectName: {}",
@@ -256,8 +262,11 @@ public class OciHttpHandler implements HttpHandler {
             exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
             if (range != null) {
                 exchange.getResponseBody()
-                        .write(Arrays.copyOfRange(object.getBytes(),
-                                range.getStartByte().intValue(), range.getEndByte().intValue() + 1));
+                        .write(
+                                Arrays.copyOfRange(
+                                        object.getBytes(),
+                                        range.getStartByte().intValue(),
+                                        range.getEndByte().intValue() + 1));
             } else {
                 exchange.getResponseBody().write(object.getBytes());
             }
@@ -282,9 +291,10 @@ public class OciHttpHandler implements HttpHandler {
         if (object != null) {
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
-            final HeadObjectResponse headObjectResponse = HeadObjectResponse.builder()
-                    .contentLength((long) object.getBytes().length)
-                    .build();
+            final HeadObjectResponse headObjectResponse =
+                    HeadObjectResponse.builder()
+                            .contentLength((long) object.getBytes().length)
+                            .build();
             final String str = MAPPER.writeValueAsString(headObjectResponse);
             final byte[] response = str.getBytes(StandardCharsets.UTF_8);
 
@@ -348,7 +358,8 @@ public class OciHttpHandler implements HttpHandler {
         exchange.close();
     }
 
-    // Original Range parser from OCI is incompatible with it's own actual "toString" serialization method
+    // Original Range parser from OCI is incompatible with it's own actual "toString" serialization
+    // method
     // therefore this is hack is needed.
     private static Range parseRangeValue(String value) {
         log.debug("Attempting to parse range: {}", value);

@@ -1,8 +1,7 @@
 package org.opensearch.fixtures.oci;
 
-import lombok.Getter;
-
 import java.time.Instant;
+import lombok.Getter;
 
 public class OSObject {
     @Getter private final String prefix;
