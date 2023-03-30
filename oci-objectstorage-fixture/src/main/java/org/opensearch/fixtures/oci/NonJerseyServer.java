@@ -1,7 +1,6 @@
 package org.opensearch.fixtures.oci;
 
 import com.sun.net.httpserver.HttpServer;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -11,8 +10,8 @@ import java.util.concurrent.Executors;
 
 public class NonJerseyServer implements Closeable {
     public static final String DEFAULT_BASE_URI = "http://localhost:8080/";
-    private final static int DEFAULT_PORT = 8080;
-    private final static String URL = "localhost";
+    private static final int DEFAULT_PORT = 8080;
+    private static final String URL = "localhost";
     private final HttpServer server;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final int port;

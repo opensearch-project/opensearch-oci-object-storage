@@ -11,10 +11,14 @@
 
 package org.opensearch.repositories.oci;
 
-import com.oracle.bmc.objectstorage.ObjectStorage;
+import static org.opensearch.common.settings.Setting.Property;
+import static org.opensearch.common.settings.Setting.boolSetting;
+import static org.opensearch.common.settings.Setting.byteSizeSetting;
+import static org.opensearch.common.settings.Setting.simpleString;
+
+import java.util.function.Function;
 import lombok.extern.log4j.Log4j2;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
-
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.Strings;
 import org.opensearch.common.blobstore.BlobPath;
@@ -26,16 +30,7 @@ import org.opensearch.indices.recovery.RecoverySettings;
 import org.opensearch.repositories.RepositoryException;
 import org.opensearch.repositories.blobstore.BlobStoreRepository;
 
-import java.util.function.Function;
-
-import static org.opensearch.common.settings.Setting.Property;
-import static org.opensearch.common.settings.Setting.boolSetting;
-import static org.opensearch.common.settings.Setting.byteSizeSetting;
-import static org.opensearch.common.settings.Setting.simpleString;
-
-/**
- * Blob repository that corresponds to OCI
- */
+/** Blob repository that corresponds to OCI */
 @Log4j2
 public class OciObjectStorageRepository extends BlobStoreRepository {
 

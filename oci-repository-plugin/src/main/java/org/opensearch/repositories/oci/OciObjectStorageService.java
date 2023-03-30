@@ -16,19 +16,16 @@ import static java.util.Collections.emptyMap;
 import com.oracle.bmc.ClientConfiguration;
 import com.oracle.bmc.objectstorage.ObjectStorageAsync;
 import com.oracle.bmc.objectstorage.ObjectStorageAsyncClient;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.common.collect.MapBuilder;
 import org.opensearch.common.util.LazyInitializable;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
-
-/**
- * Service class to hold client instances
- */
+/** Service class to hold client instances */
 @Log4j2
 public class OciObjectStorageService implements Closeable {
     /**
@@ -50,8 +47,8 @@ public class OciObjectStorageService implements Closeable {
         // build the new lazy clients
         final Map<String, LazyInitializable<ObjectStorageAsync, IOException>> oldClientCache =
                 clientsCache.get();
-        final MapBuilder<String, LazyInitializable<ObjectStorageAsync, IOException>> newClientsCache =
-                MapBuilder.newMapBuilder();
+        final MapBuilder<String, LazyInitializable<ObjectStorageAsync, IOException>>
+                newClientsCache = MapBuilder.newMapBuilder();
 
         // replace or add new clients
         newClientsCache.putAll(oldClientCache);
@@ -61,7 +58,8 @@ public class OciObjectStorageService implements Closeable {
                     oldClientCache.get(entry.getKey());
             newClientsCache.put(
                     entry.getKey(),
-                    new LazyInitializable<>(() -> createClientAsync(entry.getKey(), entry.getValue())));
+                    new LazyInitializable<>(
+                            () -> createClientAsync(entry.getKey(), entry.getValue())));
             // we will release the previous client for this entry if existed
             if (previousClient != null) {
                 previousClient.reset();
@@ -104,7 +102,8 @@ public class OciObjectStorageService implements Closeable {
         log.debug(
                 () ->
                         new ParameterizedMessage(
-                                "creating OCI object store client with client_name [{}], endpoint [{}]",
+                                "creating OCI object store client with client_name [{}], endpoint"
+                                        + " [{}]",
                                 clientName,
                                 clientSettings.getEndpoint()));
 
@@ -122,12 +121,14 @@ public class OciObjectStorageService implements Closeable {
 
     @Override
     public void close() throws IOException {
-        clientsCache.get().values().stream().forEach(lazyClient -> {
-            try {
-                lazyClient.getOrCompute().close();
-            } catch (Exception e) {
-                log.error("unable to close client");
-            }
-        });
+        clientsCache.get().values().stream()
+                .forEach(
+                        lazyClient -> {
+                            try {
+                                lazyClient.getOrCompute().close();
+                            } catch (Exception e) {
+                                log.error("unable to close client");
+                            }
+                        });
     }
 }

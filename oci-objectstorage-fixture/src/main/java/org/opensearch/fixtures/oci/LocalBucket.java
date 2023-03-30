@@ -2,9 +2,6 @@ package org.opensearch.fixtures.oci;
 
 import com.google.common.base.Preconditions;
 import com.oracle.bmc.model.BmcException;
-import lombok.Value;
-import org.apache.commons.io.IOUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -13,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import lombok.Value;
+import org.apache.commons.io.IOUtils;
 
 @Value
 public class LocalBucket {

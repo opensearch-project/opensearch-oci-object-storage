@@ -11,21 +11,20 @@
 
 package org.opensearch.repositories.oci;
 
+import static org.opensearch.common.settings.Setting.boolSetting;
+import static org.opensearch.common.settings.Setting.simpleString;
+
 import com.oracle.bmc.Region;
 import com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
 import com.oracle.bmc.auth.InstancePrincipalsAuthenticationDetailsProvider;
 import com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.util.function.Supplier;
 import lombok.extern.log4j.Log4j2;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.common.io.PathUtils;
 import org.opensearch.common.settings.Setting;
-
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.util.function.Supplier;
-
-import static org.opensearch.common.settings.Setting.boolSetting;
-import static org.opensearch.common.settings.Setting.simpleString;
 
 /** Container for OCI object storage clients settings. */
 @Log4j2
@@ -87,7 +86,12 @@ public class OciObjectStorageClientSettings {
             final Region region = Region.fromRegionCodeOrId(regionStr);
 
             log.info(
-                    "Initializing client settings with:\n userId: {}\n tenantId: {}\n fingerPrint: {}\n credentialsFilePath {}\nregion: {}\n",
+                    "Initializing client settings with:\n"
+                            + " userId: {}\n"
+                            + " tenantId: {}\n"
+                            + " fingerPrint: {}\n"
+                            + " credentialsFilePath {}\n"
+                            + "region: {}\n",
                     userId,
                     tenantId,
                     fingerprint,

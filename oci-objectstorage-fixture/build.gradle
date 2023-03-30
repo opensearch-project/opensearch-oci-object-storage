@@ -31,9 +31,3 @@ java {
 compileJava {
     options.release = 11
 }
-
-
-
-
-
-

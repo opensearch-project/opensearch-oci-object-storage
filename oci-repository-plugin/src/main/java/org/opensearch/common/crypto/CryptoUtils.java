@@ -10,7 +10,6 @@
  */
 package org.opensearch.common.crypto;
 
-import lombok.extern.log4j.Log4j2;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -18,10 +17,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.*;
 import java.util.Base64;
+import lombok.extern.log4j.Log4j2;
 
-/**
- * Crypto utilities used throughout the project
- */
+/** Crypto utilities used throughout the project */
 @Log4j2
 public class CryptoUtils {
     public static Path generatePrivatePublicKeyPair() throws NoSuchAlgorithmException, IOException {

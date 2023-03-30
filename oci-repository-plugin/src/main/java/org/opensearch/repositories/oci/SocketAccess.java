@@ -11,19 +11,18 @@
 
 package org.opensearch.repositories.oci;
 
-import org.opensearch.SpecialPermission;
-import org.opensearch.common.CheckedRunnable;
-
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import org.opensearch.SpecialPermission;
+import org.opensearch.common.CheckedRunnable;
 
 /**
  * This plugin uses oci api/client libraries to connect to oci cloud services. For these remote
- * calls the plugin needs {@link java.net.SocketPermission} 'connect' to establish connections. This class
- * wraps the operations requiring access in {@link AccessController#doPrivileged(PrivilegedExceptionAction)}
- * blocks.
+ * calls the plugin needs {@link java.net.SocketPermission} 'connect' to establish connections. This
+ * class wraps the operations requiring access in {@link
+ * AccessController#doPrivileged(PrivilegedExceptionAction)} blocks.
  */
 public class SocketAccess {
 

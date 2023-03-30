@@ -6,6 +6,7 @@ plugins {
     id 'jacoco'
     id 'java'
     id 'java-library'
+    id "com.diffplug.spotless" version "6.17.0"
 }
 
 repositories {
@@ -24,6 +25,7 @@ subprojects {
     apply plugin: 'java-library'
     apply plugin: 'idea'
     apply plugin: 'jacoco'
+    apply plugin: 'com.diffplug.spotless'
 
     ext {
         opensearch_version = System.getProperty("opensearch.version", "2.6.0")
@@ -104,6 +106,33 @@ subprojects {
             options.compilerArgs.remove('-Werror')
             // TODO: need to fix all java doc format
             options.compilerArgs.remove('-Xdoclint:all')
+        }
+    }
+
+    spotless {
+        // optional: limit format enforcement to just the files changed by this feature branch
+        //ratchetFrom 'origin/main'
+
+        format 'misc', {
+            // define the files to apply `misc` to
+            target '*.gradle', '*.md', '.gitignore'
+
+            // define the steps to apply to those files
+            trimTrailingWhitespace()
+            //indentWithTabs() // or spaces. Takes an integer argument if you don't like 4
+            endWithNewline()
+        }
+        java {
+            // only scan main source files
+            target 'src/main/**/*.java'
+            // Use the default importOrder configuration
+            importOrder()
+            removeUnusedImports()
+
+            // apply a specific flavor of google-java-format
+            googleJavaFormat('1.16.0').aosp().reflowLongStrings()
+            // fix formatting of type annotations
+            formatAnnotations()
         }
     }
 }
