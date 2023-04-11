@@ -17,7 +17,7 @@ repositories {
 }
 
 allprojects {
-    version = '2.6.0'
+    version = '2.7.0'
 }
 
 subprojects {
@@ -28,8 +28,8 @@ subprojects {
     apply plugin: 'com.diffplug.spotless'
 
     ext {
-        opensearch_version = System.getProperty("opensearch.version", "2.6.0")
-        sdk_version = "3.7.0"
+        opensearch_version = System.getProperty("opensearch.version", "2.7.0-SNAPSHOT")
+        sdk_version = "3.10.0"
         jackson_version = "2.14.2"
     }
 
