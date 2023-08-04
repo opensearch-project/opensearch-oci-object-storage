@@ -705,7 +705,7 @@ class OciObjectStorageBlobStore implements BlobStore {
                                     public void onError(PutObjectRequest putObjectRequest, Throwable error) {
                                         log.error("error put object: {}, bucket: {}, namespace: {}", objectName, bucketName, namespace, error);
                                     }
-                                }).get(5, TimeUnit.SECONDS);
+                                }).get(60, TimeUnit.SECONDS);
                                 final Instant end = Instant.now();
                                 log.info(
                                         "Finished pushing object '/n/{}/b/{}/o/{}' in {} millis",
