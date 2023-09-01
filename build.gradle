@@ -6,7 +6,7 @@ plugins {
     id 'jacoco'
     id 'java'
     id 'java-library'
-    id "com.diffplug.spotless" version "6.17.0"
+    id "com.diffplug.spotless" version "6.21.0"
 }
 
 repositories {
@@ -52,12 +52,14 @@ subprojects {
             force "commons-codec:commons-codec:1.15"
             force "org.apache.httpcomponents:httpcore:4.4.15"
             force "jakarta.annotation:jakarta.annotation-api:2.1.1"
+            // Force spotless depending on newer version of guava due to CVE-2023-2976. Remove after spotless upgrades.
+            force "com.google.guava:guava:32.1.2-jre"
         }
     }
 
     dependencies {
         implementation "net.jodah:failsafe:2.4.0"
-        implementation "com.google.guava:guava:31.1-jre"
+        implementation "com.google.guava:guava:32.1.2-jre"
         implementation "org.apache.commons:commons-lang3:3.9"
         implementation "commons-io:commons-io:2.7"
         /******************** Hacking transient dependencies for OCI SDK ********************/
@@ -130,7 +132,7 @@ subprojects {
             removeUnusedImports()
 
             // apply a specific flavor of google-java-format
-            googleJavaFormat('1.16.0').aosp().reflowLongStrings()
+            googleJavaFormat().aosp().reflowLongStrings()
             // fix formatting of type annotations
             formatAnnotations()
         }
