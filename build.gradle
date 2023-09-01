@@ -19,11 +19,9 @@ repositories {
 allprojects {
     version = '2.7.0'
 
-    // Force spotless and checkstyle depending on newer version of guava due to CVE-2023-2976. Remove after they both upgrades.
-    configurations.all {
-        resolutionStrategy {
-            force "com.google.guava:guava:32.1.2-jre"
-        }
+    // Force using a newer version, due to guava vulnerability CVE-2023-2976. Remove after Gradle upgrades its default version.
+    checkstyle {
+        toolVersion = "10.12.3"
     }
 }
 
@@ -59,6 +57,8 @@ subprojects {
             force "commons-codec:commons-codec:1.15"
             force "org.apache.httpcomponents:httpcore:4.4.15"
             force "jakarta.annotation:jakarta.annotation-api:2.1.1"
+            // Force spotless depending on newer version of guava due to CVE-2023-2976. Remove after spotless upgrades.
+            force "com.google.guava:guava:32.1.2-jre"
             // Force opensearch transport-netty4-client depending on newer version of netty-handler due to CVE-2023-34462.
             // Remove after upgrading the compiled opensearch version.
             force "io.netty:netty-handler:4.1.94.Final"
