@@ -18,6 +18,11 @@ repositories {
 
 allprojects {
     version = '2.7.0'
+
+    // Force using a newer version, due to guava vulnerability CVE-2023-2976. Remove after Gradle upgrades its default version.
+    checkstyle {
+        toolVersion = "10.12.3"
+    }
 }
 
 subprojects {
