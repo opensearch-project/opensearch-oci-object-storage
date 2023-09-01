@@ -59,6 +59,9 @@ subprojects {
             force "commons-codec:commons-codec:1.15"
             force "org.apache.httpcomponents:httpcore:4.4.15"
             force "jakarta.annotation:jakarta.annotation-api:2.1.1"
+            // Force opensearch transport-netty4-client depending on newer version of netty-handler due to CVE-2023-34462.
+            // Remove after upgrading the compiled opensearch version.
+            force "io.netty:netty-handler:4.1.94.Final"
         }
     }
 
