@@ -18,6 +18,13 @@ repositories {
 
 allprojects {
     version = '2.7.0'
+
+    // Force spotless and checkstyle depending on newer version of guava due to CVE-2023-2976. Remove after they both upgrades.
+    configurations.all {
+        resolutionStrategy {
+            force "com.google.guava:guava:32.1.2-jre"
+        }
+    }
 }
 
 subprojects {
@@ -52,8 +59,6 @@ subprojects {
             force "commons-codec:commons-codec:1.15"
             force "org.apache.httpcomponents:httpcore:4.4.15"
             force "jakarta.annotation:jakarta.annotation-api:2.1.1"
-            // Force spotless depending on newer version of guava due to CVE-2023-2976. Remove after spotless upgrades.
-            force "com.google.guava:guava:32.1.2-jre"
         }
     }
 
