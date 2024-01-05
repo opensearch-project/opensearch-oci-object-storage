@@ -20,11 +20,11 @@ import java.util.function.Function;
 import lombok.extern.log4j.Log4j2;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.Strings;
 import org.opensearch.common.blobstore.BlobPath;
 import org.opensearch.common.settings.Setting;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.core.common.Strings;
+import org.opensearch.core.common.unit.ByteSizeUnit;
+import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.indices.recovery.RecoverySettings;
 import org.opensearch.repositories.RepositoryException;
@@ -56,8 +56,6 @@ public class OciObjectStorageRepository extends BlobStoreRepository {
             simpleString("bucket_compartment_id", Property.NodeScope, Property.Dynamic);
     public static final Setting<String> BASE_PATH_SETTING =
             simpleString("base_path", Property.NodeScope, Property.Dynamic);
-    public static final Setting<Boolean> COMPRESS =
-            boolSetting("compress", false, Property.NodeScope, Property.Dynamic);
     public static final Setting<ByteSizeValue> CHUNK_SIZE_SETTING =
             byteSizeSetting(
                     "chunk_size",
@@ -79,12 +77,7 @@ public class OciObjectStorageRepository extends BlobStoreRepository {
             final OciObjectStorageService storageService,
             final ClusterService clusterService,
             final RecoverySettings recoverySettings) {
-        super(
-                metadata,
-                getSetting(COMPRESS, metadata),
-                namedXContentRegistry,
-                clusterService,
-                recoverySettings);
+        super(metadata, namedXContentRegistry, clusterService, recoverySettings);
 
         this.storageService = storageService;
         String basePath = BASE_PATH_SETTING.get(metadata.settings());

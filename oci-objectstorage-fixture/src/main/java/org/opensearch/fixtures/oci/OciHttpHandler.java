@@ -22,10 +22,10 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.log4j.Log4j2;
-import org.opensearch.common.bytes.BytesReference;
 import org.opensearch.common.io.Streams;
 import org.opensearch.common.regex.Regex;
-import org.opensearch.rest.RestStatus;
+import org.opensearch.core.common.bytes.BytesReference;
+import org.opensearch.core.rest.RestStatus;
 import org.opensearch.rest.RestUtils;
 
 @Log4j2

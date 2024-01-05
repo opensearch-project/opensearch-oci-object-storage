@@ -6,6 +6,8 @@ plugins {
 apply plugin: 'io.freefair.lombok'
 apply plugin: 'java'
 apply plugin: 'java-library'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
@@ -22,7 +24,7 @@ version = '1.0'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(19)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
