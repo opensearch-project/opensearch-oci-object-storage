@@ -6,6 +6,7 @@ apply plugin: 'opensearch.opensearchplugin'
 apply plugin: 'opensearch.pluginzip'
 apply plugin: "io.freefair.lombok"
 apply plugin: 'jacoco'
+apply plugin: 'eclipse'
 
 def pluginName = 'repository-oci'
 def pluginDescription = 'OCI Object storage repository'

@@ -1,12 +1,14 @@
 
 plugins {
-    id 'nebula.ospackage' version "8.3.0"
+    id 'com.netflix.nebula.ospackage' version "11.6.0"
     id 'checkstyle'
-    id "io.freefair.lombok" version "6.4.0"
+    id "io.freefair.lombok" version "8.4"
     id 'jacoco'
     id 'java'
     id 'java-library'
-    id "com.diffplug.spotless" version "6.21.0"
+    id "com.diffplug.spotless" version "6.23.3"
+    id 'idea'
+    id 'eclipse'
 }
 
 repositories {
@@ -17,7 +19,7 @@ repositories {
 }
 
 allprojects {
-    version = '2.7.0'
+    version = '2.12.0-SNAPSHOT'
 
     // Force using a newer version, due to guava vulnerability CVE-2023-2976. Remove after Gradle upgrades its default version.
     checkstyle {
@@ -33,9 +35,9 @@ subprojects {
     apply plugin: 'com.diffplug.spotless'
 
     ext {
-        opensearch_version = System.getProperty("opensearch.version", "2.7.0-SNAPSHOT")
+        opensearch_version = System.getProperty("opensearch.version", "2.12.0-SNAPSHOT")
         sdk_version = "3.24.0"
-        jackson_version = "2.14.2"
+        jackson_version = "2.16.0"
     }
 
     repositories {
@@ -57,6 +59,8 @@ subprojects {
             force "commons-codec:commons-codec:1.15"
             force "org.apache.httpcomponents:httpcore:4.4.15"
             force "jakarta.annotation:jakarta.annotation-api:2.1.1"
+            force "org.javassist:javassist:3.25.0-GA"
+            force "org.apache.httpcomponents:httpclient:4.5.14"
             // Force spotless depending on newer version of guava due to CVE-2023-2976. Remove after spotless upgrades.
             force "com.google.guava:guava:32.1.2-jre"
             // Force opensearch transport-netty4-client depending on newer version of netty-handler due to CVE-2023-34462.
@@ -64,35 +68,56 @@ subprojects {
             force "io.netty:netty-handler:4.1.94.Final"
         }
     }
-
+    
     dependencies {
         implementation "net.jodah:failsafe:2.4.0"
         implementation "com.google.guava:guava:32.1.2-jre"
         implementation "org.apache.commons:commons-lang3:3.9"
         implementation "commons-io:commons-io:2.7"
+        implementation "commons-logging:commons-logging:1.2"
+        implementation "commons-codec:commons-codec:1.15"
+        
         /******************** Hacking transient dependencies for OCI SDK ********************/
         // TODO: For some odd reason it seems that the OpenSearch gradle plugin overrides resolution of implementation
         // configuration which is why this hack is needed so we can get the transient dependencies packaged properly
 
 
+        implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient:${sdk_version}")
         implementation("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
-        compileClasspath("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
-        testCompileClasspath("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
-        runtimeClasspath("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
-        testRuntimeClasspath("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
-
         implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
-        compileClasspath("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
-        testCompileClasspath("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
-        runtimeClasspath("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
-        testRuntimeClasspath("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
+        implementation("com.oracle.oci.sdk:oci-java-sdk-common:${sdk_version}")
+        implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage-generated:${sdk_version}")
+        implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage-extensions:${sdk_version}")
+        implementation("com.oracle.oci.sdk:oci-java-sdk-circuitbreaker:${sdk_version}")
 
-        runtimeClasspath("org.slf4j:slf4j-api") {
-            version {
-                strictly "1.7.33"
-            }
-        }
-        testRuntimeClasspath("org.slf4j:slf4j-api") {
+        implementation("io.github.resilience4j:resilience4j-circuitbreaker:1.7.1")
+        implementation("io.github.resilience4j:resilience4j-core:1.7.1")
+        implementation("jakarta.ws.rs:jakarta.ws.rs-api:2.1.6")
+        implementation("org.glassfish.jersey.media:jersey-media-json-jackson:2.35")
+        implementation("org.glassfish.jersey.ext:jersey-entity-filtering:2.35")
+        implementation("org.glassfish.jersey.core:jersey-client:2.35")
+        implementation("org.glassfish.jersey.core:jersey-common:2.35")
+        implementation("org.glassfish.jersey.inject:jersey-hk2:2.35")
+        implementation("org.glassfish.jersey.connectors:jersey-apache-connector:2.35")
+        implementation("jakarta.annotation:jakarta.annotation-api:2.1.1")
+        implementation("org.glassfish.hk2.external:jakarta.inject:2.6.1")
+        implementation("org.glassfish.hk2.external:aopalliance-repackaged:2.6.1")
+        implementation("org.glassfish.hk2:hk2-locator:2.6.1")
+        implementation("org.glassfish.hk2:hk2-utils:2.6.1")
+        implementation("org.glassfish.hk2:osgi-resource-locator:1.0.3")
+        implementation("org.glassfish.hk2:hk2-api:2.6.1")
+        implementation("org.apache.httpcomponents:httpclient:4.5.14")
+        implementation("org.apache.httpcomponents:httpcore:4.4.15")
+        implementation("org.bouncycastle:bcpkix-jdk15to18:1.74")
+        implementation("org.bouncycastle:bcprov-jdk15to18:1.74")
+        implementation("org.bouncycastle:bcutil-jdk15to18:1.74")
+        implementation("org.javassist:javassist:3.25.0-GA")
+        implementation("io.vavr:vavr:0.10.2")
+        implementation("io.vavr:vavr-match:0.10.2")
+        implementation("jakarta.xml.bind:jakarta.xml.bind-api:2.3.3")
+        implementation("jakarta.activation:jakarta.activation-api:1.2.2")
+
+        implementation("org.slf4j:slf4j-api") {
             version {
                 strictly "1.7.33"
             }
@@ -102,6 +127,9 @@ subprojects {
         implementation("com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:${jackson_version}")
         implementation("com.fasterxml.jackson.jaxrs:jackson-jaxrs-base:${jackson_version}")
         implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:${jackson_version}")
+        implementation("com.fasterxml.jackson.core:jackson-annotations:${jackson_version}")
+        implementation("com.fasterxml.jackson.core:jackson-databind:${jackson_version}")
+        implementation("com.fasterxml.jackson.module:jackson-module-jaxb-annotations:${jackson_version}")
 
         compileOnly "org.opensearch:opensearch:${opensearch_version}"
 
