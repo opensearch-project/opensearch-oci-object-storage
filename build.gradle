@@ -19,7 +19,7 @@ repositories {
 }
 
 allprojects {
-    version = '2.16.0-SNAPSHOT'
+    version = '3.0.0-SNAPSHOT'
 
     // Force using a newer version, due to guava vulnerability CVE-2023-2976. Remove after Gradle upgrades its default version.
     checkstyle {
@@ -35,9 +35,9 @@ subprojects {
     apply plugin: 'com.diffplug.spotless'
 
     ext {
-        opensearch_version = System.getProperty("opensearch.version", "2.16.0-SNAPSHOT")
+        opensearch_version = System.getProperty("opensearch.version", "3.0.0-SNAPSHOT")
         sdk_version = "3.24.0"
-        jackson_version = "2.17.1"
+        jackson_version = "2.17.2"
     }
 
     repositories {
