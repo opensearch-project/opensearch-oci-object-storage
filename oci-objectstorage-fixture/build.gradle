@@ -1,8 +1,22 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        maven { url "https://aws.oss.sonatype.org/content/repositories/snapshots" }
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+
+    dependencies {
+        classpath "org.opensearch.gradle:build-tools:${opensearch_version}"
+    }
+}
+
 plugins {
     id 'java-library'
     id 'java'
 }
 
+apply plugin: 'opensearch.repositories'
 apply plugin: 'io.freefair.lombok'
 apply plugin: 'java'
 apply plugin: 'java-library'
