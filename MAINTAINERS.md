@@ -10,5 +10,9 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Sarat Vemulapalli | [saratvemulapalli](https://github.com/saratvemulapalli) | Amazon      |
 | Vacha Shah        | [VachaShah](https://github.com/VachaShah)               | Amazon      |
 | Kunal Kotwani     | [kotwanikunal](https://github.com/kotwanikunal)         | Amazon      |
-| Andrew Ross       | [andrross](https://github.com/andrross)                 | Amazon      |
 | Anas Alkouz       | [anasalkouz](https://github.com/anasalkouz)             | Amazon      |
+
+## Emeritus
+
+| Maintainer        | GitHub ID                                               | Affiliation |
+| Andrew Ross       | [andrross](https://github.com/andrross)                 | Amazon      |
