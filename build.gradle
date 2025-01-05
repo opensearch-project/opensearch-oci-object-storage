@@ -141,6 +141,13 @@ subprojects {
 
         // Test dependencies
         testImplementation 'org.assertj:assertj-core:3.18.1'
+
+        // Bridging logs from other frameworks into Log4j2 to see logs from 3rd party libs (e.g. OCI SDK, Apache,...)
+        // Not including as implementation as could cause jar hell errors in the final distributive.
+        testImplementation "org.apache.logging.log4j:log4j-slf4j-impl:2.21.0"
+        testImplementation "org.apache.logging.log4j:log4j-1.2-api:2.21.0"
+        testImplementation "org.apache.logging.log4j:log4j-jcl:2.21.0"
+        testImplementation "org.apache.logging.log4j:log4j-jul:2.21.0"
     }
 
     compileJava {
