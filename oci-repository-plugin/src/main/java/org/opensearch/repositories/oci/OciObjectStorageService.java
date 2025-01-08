@@ -11,19 +11,17 @@
 
 package org.opensearch.repositories.oci;
 
-import static java.util.Collections.emptyMap;
-
 import com.oracle.bmc.ClientConfiguration;
+import com.oracle.bmc.http.client.jersey.ApacheClientProperties;
 import com.oracle.bmc.objectstorage.ObjectStorageAsync;
 import com.oracle.bmc.objectstorage.ObjectStorageAsyncClient;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.log4j.Log4j2;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.opensearch.common.collect.MapBuilder;
-import org.opensearch.common.util.LazyInitializable;
 
 /** Service class to hold client instances */
 @Log4j2
@@ -31,43 +29,7 @@ public class OciObjectStorageService implements Closeable {
     /**
      * Dictionary of client instances. Client instances are built lazily from the latest settings.
      */
-    private final AtomicReference<Map<String, LazyInitializable<ObjectStorageAsync, IOException>>>
-            clientsCache = new AtomicReference<>(emptyMap());
-
-    /**
-     * Refreshes the client settings of existing and new clients. Will not clear the cache of other
-     * clients. Subsequent calls to {@code OciObjectStorageService#client} will return new clients
-     * constructed using the parameter settings.
-     *
-     * @param clientsSettings the new settings used for building clients for subsequent requests
-     */
-    public synchronized void refreshWithoutClearingCache(
-            Map<String, OciObjectStorageClientSettings> clientsSettings) {
-
-        // build the new lazy clients
-        final Map<String, LazyInitializable<ObjectStorageAsync, IOException>> oldClientCache =
-                clientsCache.get();
-        final MapBuilder<String, LazyInitializable<ObjectStorageAsync, IOException>>
-                newClientsCache = MapBuilder.newMapBuilder();
-
-        // replace or add new clients
-        newClientsCache.putAll(oldClientCache);
-        for (final Map.Entry<String, OciObjectStorageClientSettings> entry :
-                clientsSettings.entrySet()) {
-            final LazyInitializable<ObjectStorageAsync, IOException> previousClient =
-                    oldClientCache.get(entry.getKey());
-            newClientsCache.put(
-                    entry.getKey(),
-                    new LazyInitializable<>(
-                            () -> createClientAsync(entry.getKey(), entry.getValue())));
-            // we will release the previous client for this entry if existed
-            if (previousClient != null) {
-                previousClient.reset();
-            }
-        }
-
-        clientsCache.getAndSet(newClientsCache.immutableMap());
-    }
+    private final Map<String, ObjectStorageAsync> clientsCache = new HashMap<>();
 
     /**
      * Attempts to retrieve a client from the cache. If the client does not exist it will be created
@@ -78,15 +40,16 @@ public class OciObjectStorageService implements Closeable {
      * @param clientName name of the client settings used to create the client
      * @return a cached client storage instance that can be used to manage objects (blobs)
      */
-    public ObjectStorageAsync client(final String clientName) throws IOException {
-        final LazyInitializable<ObjectStorageAsync, IOException> lazyClient =
-                clientsCache.get().get(clientName);
-        if (lazyClient == null) {
-            log.warn("No client found for client name");
-            return null;
-        }
+    public synchronized ObjectStorageAsync client(
+            final String clientName, OciObjectStorageClientSettings clientSettings)
+            throws IOException {
 
-        return lazyClient.getOrCompute();
+        ObjectStorageAsync client = clientsCache.get(clientName);
+        if (client == null) {
+            client = createClientAsync(clientName, clientSettings);
+            clientsCache.put(clientName, client);
+        }
+        return client;
     }
 
     /**
@@ -111,6 +74,33 @@ public class OciObjectStorageService implements Closeable {
                 SocketAccess.doPrivilegedIOException(
                         () ->
                                 ObjectStorageAsyncClient.builder()
+                                        // This will run after, and in addition to, the default
+                                        // client configurator;
+                                        // this allows you to get the default behavior from the
+                                        // default client
+                                        // configurator
+                                        // (in the case of the ObjectStorageClient, the
+                                        // non-buffering behavior), but
+                                        // you
+                                        // can also add other things on top of it, like adding new
+                                        // headers
+
+                                        .additionalClientConfigurator(
+                                                builder -> {
+                                                    // Define a connection manager and its
+                                                    // properties
+                                                    final PoolingHttpClientConnectionManager
+                                                            poolConnectionManager =
+                                                                    new PoolingHttpClientConnectionManager();
+                                                    poolConnectionManager.setMaxTotal(100);
+                                                    poolConnectionManager.setDefaultMaxPerRoute(
+                                                            100);
+
+                                                    builder.property(
+                                                            ApacheClientProperties
+                                                                    .CONNECTION_MANAGER,
+                                                            poolConnectionManager);
+                                                })
                                         .configuration(ClientConfiguration.builder().build())
                                         .build(clientSettings.getAuthenticationDetailsProvider()));
 
@@ -121,11 +111,12 @@ public class OciObjectStorageService implements Closeable {
 
     @Override
     public void close() throws IOException {
-        clientsCache.get().values().stream()
+        log.info("Shutting down all clients");
+        clientsCache.values().stream()
                 .forEach(
                         lazyClient -> {
                             try {
-                                lazyClient.getOrCompute().close();
+                                lazyClient.close();
                             } catch (Exception e) {
                                 log.error("unable to close client");
                             }

@@ -37,7 +37,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -135,13 +134,7 @@ class OciObjectStorageBlobStore implements BlobStore {
     }
 
     private ObjectStorageAsync client() throws IOException {
-        if (storageService.client(clientName) == null) {
-            final Map<String, OciObjectStorageClientSettings> clientSettingsMap = new HashMap<>();
-            clientSettingsMap.put(clientName, clientSettings);
-            storageService.refreshWithoutClearingCache(clientSettingsMap);
-        }
-
-        return storageService.client(clientName);
+        return storageService.client(clientName, clientSettings);
     }
 
     @Override
