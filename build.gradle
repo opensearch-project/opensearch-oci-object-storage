@@ -42,7 +42,7 @@ subprojects {
     ext {
         opensearch_version = System.getProperty("opensearch.version", "3.0.0-SNAPSHOT")
         sdk_version = "3.24.0"
-        jackson_version = "2.17.2"
+        jackson_version = "2.18.2"
     }
 
     repositories {
@@ -81,7 +81,7 @@ subprojects {
         implementation "net.jodah:failsafe:2.4.0"
         implementation "com.google.guava:guava:32.1.2-jre"
         implementation "org.apache.commons:commons-lang3:3.9"
-        implementation "commons-io:commons-io:2.7"
+        implementation "commons-io:commons-io:2.14.0"
         implementation "commons-logging:commons-logging:1.2"
         implementation "commons-codec:commons-codec:1.15"
         
@@ -122,8 +122,6 @@ subprojects {
         implementation("org.javassist:javassist:3.25.0-GA")
         implementation("io.vavr:vavr:0.10.2")
         implementation("io.vavr:vavr-match:0.10.2")
-        implementation("jakarta.xml.bind:jakarta.xml.bind-api:2.3.3")
-        implementation("jakarta.activation:jakarta.activation-api:1.2.2")
 
         implementation("org.slf4j:slf4j-api") {
             version {
@@ -143,6 +141,13 @@ subprojects {
 
         // Test dependencies
         testImplementation 'org.assertj:assertj-core:3.18.1'
+
+        // Bridging logs from other frameworks into Log4j2 to see logs from 3rd party libs (e.g. OCI SDK, Apache,...)
+        // Not including as implementation as could cause jar hell errors in the final distributive.
+        testImplementation "org.apache.logging.log4j:log4j-slf4j-impl:2.21.0"
+        testImplementation "org.apache.logging.log4j:log4j-1.2-api:2.21.0"
+        testImplementation "org.apache.logging.log4j:log4j-jcl:2.21.0"
+        testImplementation "org.apache.logging.log4j:log4j-jul:2.21.0"
     }
 
     compileJava {
