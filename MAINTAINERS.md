@@ -4,11 +4,12 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 
 ## Current Maintainers
 
-| Maintainer        | GitHub ID                                               | Affiliation |
-|-------------------|---------------------------------------------------------| ----------- |
-| Samuel            | [samuel-oci](https://github.com/samuel-oci)             | Oracle      |
-| Vacha Shah        | [VachaShah](https://github.com/VachaShah)               | Amazon      |
-| Anas Alkouz       | [anasalkouz](https://github.com/anasalkouz)             | Amazon      |
+| Maintainer    | GitHub ID                                                     | Affiliation |
+|---------------|---------------------------------------------------------------|-------------|
+| Samuel Herman | [sam-herman](https://github.com/sam-herman)                   | Individual      |
+| Vacha Shah    | [VachaShah](https://github.com/VachaShah)                     | Amazon      |
+| Anas Alkouz   | [anasalkouz](https://github.com/anasalkouz)                   | Amazon      |
+| Dmitri Goroh  | [dmitri-goroh-oracle](https://github.com/dmitri-goroh-oracle) | Oracle      |
 
 ## Emeritus
 
