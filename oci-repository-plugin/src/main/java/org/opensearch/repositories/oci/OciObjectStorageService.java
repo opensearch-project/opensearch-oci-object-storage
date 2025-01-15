@@ -12,7 +12,6 @@
 package org.opensearch.repositories.oci;
 
 import com.oracle.bmc.ClientConfiguration;
-import com.oracle.bmc.http.client.jersey.ApacheClientProperties;
 import com.oracle.bmc.objectstorage.ObjectStorageAsync;
 import com.oracle.bmc.objectstorage.ObjectStorageAsyncClient;
 import java.io.Closeable;
@@ -20,7 +19,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.log4j.Log4j2;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 
 /** Service class to hold client instances */
@@ -74,33 +72,6 @@ public class OciObjectStorageService implements Closeable {
                 SocketAccess.doPrivilegedIOException(
                         () ->
                                 ObjectStorageAsyncClient.builder()
-                                        // This will run after, and in addition to, the default
-                                        // client configurator;
-                                        // this allows you to get the default behavior from the
-                                        // default client
-                                        // configurator
-                                        // (in the case of the ObjectStorageClient, the
-                                        // non-buffering behavior), but
-                                        // you
-                                        // can also add other things on top of it, like adding new
-                                        // headers
-
-                                        .additionalClientConfigurator(
-                                                builder -> {
-                                                    // Define a connection manager and its
-                                                    // properties
-                                                    final PoolingHttpClientConnectionManager
-                                                            poolConnectionManager =
-                                                                    new PoolingHttpClientConnectionManager();
-                                                    poolConnectionManager.setMaxTotal(100);
-                                                    poolConnectionManager.setDefaultMaxPerRoute(
-                                                            100);
-
-                                                    builder.property(
-                                                            ApacheClientProperties
-                                                                    .CONNECTION_MANAGER,
-                                                            poolConnectionManager);
-                                                })
                                         .configuration(ClientConfiguration.builder().build())
                                         .build(clientSettings.getAuthenticationDetailsProvider()));
 

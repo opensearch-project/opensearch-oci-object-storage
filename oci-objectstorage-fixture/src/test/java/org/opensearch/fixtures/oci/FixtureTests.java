@@ -7,6 +7,7 @@ import javax.ws.rs.client.WebTarget;
 import com.oracle.bmc.Region;
 import com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
 import com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
+import com.oracle.bmc.http.client.jersey.ApacheClientProperties;
 import com.oracle.bmc.model.Range;
 import com.oracle.bmc.objectstorage.ObjectStorage;
 import com.oracle.bmc.objectstorage.ObjectStorageClient;
@@ -15,6 +16,7 @@ import com.oracle.bmc.objectstorage.requests.*;
 import com.oracle.bmc.objectstorage.responses.*;
 import lombok.extern.log4j.Log4j2;
 
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -68,6 +70,33 @@ public class FixtureTests {
         target = c.target(NonJerseyServer.DEFAULT_BASE_URI);
         objectStorage =
                 ObjectStorageClient.builder()
+                    // This will run after, and in addition to, the default
+                    // client configurator;
+                    // this allows you to get the default behavior from the
+                    // default client
+                    // configurator
+                    // (in the case of the ObjectStorageClient, the
+                    // non-buffering behavior), but
+                    // you
+                    // can also add other things on top of it, like adding new
+                    // headers
+
+                    .additionalClientConfigurator(
+                        builder -> {
+                            // Define a connection manager and its
+                            // properties
+                            final PoolingHttpClientConnectionManager
+                                poolConnectionManager =
+                                new PoolingHttpClientConnectionManager();
+                            // Setting intentionally pool to 1 to find connections leaks
+                            poolConnectionManager.setMaxTotal(1);
+                            poolConnectionManager.setDefaultMaxPerRoute(1);
+
+                            builder.property(
+                                ApacheClientProperties
+                                    .CONNECTION_MANAGER,
+                                poolConnectionManager);
+                        })
                         .endpoint("http://localhost:8080")
                         .build(authenticationDetailsProvider);
     }
@@ -87,20 +116,50 @@ public class FixtureTests {
     }
 
     @Test
-    public void testItAll() throws IOException {
+    public void testEachApiOnce() throws IOException {
         // 1. Create bucket
         final CreateBucketResponse createBucketResponse =
-                objectStorage.createBucket(
-                        CreateBucketRequest.builder()
-                                .namespaceName(NAMESPACE)
-                                .createBucketDetails(
-                                        CreateBucketDetails.builder()
-                                                .compartmentId(COMPARTMENT_ID)
-                                                .metadata(new HashMap<>())
-                                                .name(BUCKET_NAME)
-                                                .build())
-                                .build());
+            objectStorage.createBucket(
+                CreateBucketRequest.builder()
+                    .namespaceName(NAMESPACE)
+                    .createBucketDetails(
+                        CreateBucketDetails.builder()
+                            .compartmentId(COMPARTMENT_ID)
+                            .metadata(new HashMap<>())
+                            .name(BUCKET_NAME)
+                            .build())
+                    .build());
         assertEquals(BUCKET_NAME, createBucketResponse.getBucket().getName());
+
+        runObjectApis();
+    }
+
+    @Test(timeout = 30_000)
+    public void testConnectionLeak() throws IOException {
+        // 1. Create bucket
+        final CreateBucketResponse createBucketResponse =
+            objectStorage.createBucket(
+                CreateBucketRequest.builder()
+                    .namespaceName(NAMESPACE)
+                    .createBucketDetails(
+                        CreateBucketDetails.builder()
+                            .compartmentId(COMPARTMENT_ID)
+                            .metadata(new HashMap<>())
+                            .name(BUCKET_NAME)
+                            .build())
+                    .build());
+        assertEquals(BUCKET_NAME, createBucketResponse.getBucket().getName());
+
+        // ObjectStorageClient in this test should be configured with connection pool of size 1.
+        // So on second method invocation pool will run out of connection and execution wil get stuck.
+        // Timeout set for this method will spot that method did not finished by itself.
+        // Timeout value is set generous to run well even on the slowest machine.
+        for (int i=0;i<2;i++) {
+            runObjectApis();
+        }
+    }
+
+    private void runObjectApis() throws IOException {
 
         // 2. Create object
         final PutObjectResponse putObjectResponse =

@@ -238,7 +238,7 @@ public class OciHttpHandler implements HttpHandler {
                 bucketName,
                 objectName);
         exchange.getResponseHeaders().add("Content-Type", "application/json");
-        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
+        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), -1);
         exchange.close();
     }
 
@@ -289,8 +289,6 @@ public class OciHttpHandler implements HttpHandler {
         final LocalBucket bucket = buckets.get(bucketName);
         final OSObject object = bucket.getObject(objectName);
         if (object != null) {
-            exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
             final HeadObjectResponse headObjectResponse =
                     HeadObjectResponse.builder()
                             .contentLength((long) object.getBytes().length)
@@ -299,7 +297,7 @@ public class OciHttpHandler implements HttpHandler {
             final byte[] response = str.getBytes(StandardCharsets.UTF_8);
 
             exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
+            exchange.sendResponseHeaders(RestStatus.OK.getStatus(), response.length);
             exchange.getResponseBody().write(response);
             exchange.close();
         } else {
@@ -334,7 +332,7 @@ public class OciHttpHandler implements HttpHandler {
         final byte[] response = str.getBytes(StandardCharsets.UTF_8);
 
         exchange.getResponseHeaders().add("Content-Type", "application/json");
-        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
+        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), response.length);
         exchange.getResponseBody().write(response);
         exchange.close();
     }
@@ -354,7 +352,7 @@ public class OciHttpHandler implements HttpHandler {
 
         bucket.deleteObject(objectName);
         exchange.getResponseHeaders().add("Content-Type", "application/json");
-        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
+        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), -1);
         exchange.close();
     }
 
