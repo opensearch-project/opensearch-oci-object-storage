@@ -6,6 +6,7 @@ import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKN
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.oracle.bmc.model.Range;
 import com.oracle.bmc.objectstorage.model.Bucket;
 import com.oracle.bmc.objectstorage.model.CreateBucketDetails;
@@ -17,16 +18,12 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import java.io.*;
+import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.log4j.Log4j2;
-import org.opensearch.common.io.Streams;
-import org.opensearch.common.regex.Regex;
-import org.opensearch.core.common.bytes.BytesReference;
-import org.opensearch.core.rest.RestStatus;
-import org.opensearch.rest.RestUtils;
 
 @Log4j2
 public class OciHttpHandler implements HttpHandler {
@@ -60,17 +57,16 @@ public class OciHttpHandler implements HttpHandler {
             if (path.equals("/n/testResource") && exchange.getRequestMethod().equals("GET")) {
                 // Test resource
                 final byte[] response = getIt().getBytes(StandardCharsets.UTF_8);
-                exchange.sendResponseHeaders(RestStatus.OK.getStatus(), response.length);
+                exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
                 exchange.getResponseBody().write(response);
                 exchange.close();
-            } else if (Regex.simpleMatch("/n/*/b", path)
-                    && exchange.getRequestMethod().equals("POST")) {
+            } else if (path.matches("/n/.*/b") && exchange.getRequestMethod().equals("POST")) {
                 // create bucket
                 final String namespace = pathParams[2];
                 final CreateBucketDetails createBucketDetails =
                         MAPPER.readValue(exchange.getRequestBody(), CreateBucketDetails.class);
                 createBucket(namespace, createBucketDetails, exchange);
-            } else if (Regex.simpleMatch("/n/*/b/*/o/*", path)
+            } else if (path.matches("/n/.*/b/.*/o/.*")
                     && exchange.getRequestMethod().equals("PUT")) {
                 // PUT object
                 final String namespace = pathParams[2];
@@ -80,7 +76,7 @@ public class OciHttpHandler implements HttpHandler {
                 final int contentLength =
                         Integer.parseInt(exchange.getRequestHeaders().getFirst("Content-Length"));
                 putObject(namespace, bucket, objectName, contentLength, exchange);
-            } else if (Regex.simpleMatch("/n/*/b/*/o/*", path)
+            } else if (path.matches("/n/.*/b/.*/o/.*")
                     && exchange.getRequestMethod().equals("GET")) {
                 // GET object
                 final String namespace = pathParams[2];
@@ -96,7 +92,7 @@ public class OciHttpHandler implements HttpHandler {
                 }
 
                 getObject(namespace, bucket, objectName, range, exchange);
-            } else if (Regex.simpleMatch("/n/*/b/*/o/*", path)
+            } else if (path.matches("/n/.*/b/.*/o/.*")
                     && exchange.getRequestMethod().equals("HEAD")) {
                 // HEAD object
                 final String namespace = pathParams[2];
@@ -104,7 +100,7 @@ public class OciHttpHandler implements HttpHandler {
                 final String objectName =
                         String.join("/", Arrays.copyOfRange(pathParams, 6, pathParams.length));
                 headObject(namespace, bucket, objectName, exchange);
-            } else if (Regex.simpleMatch("/n/*/b/*/o/*", path)
+            } else if (path.matches("/n/.*/b/.*/o/.*")
                     && exchange.getRequestMethod().equals("DELETE")) {
                 // DELETE object
                 final String namespace = pathParams[2];
@@ -112,23 +108,27 @@ public class OciHttpHandler implements HttpHandler {
                 final String objectName =
                         String.join("/", Arrays.copyOfRange(pathParams, 6, pathParams.length));
                 deleteObject(namespace, bucket, objectName, exchange);
-            } else if (Regex.simpleMatch("/n/*/b/*/o", path)
-                    && exchange.getRequestMethod().equals("GET")) {
+            } else if (path.matches("/n/.*/b/.*/o") && exchange.getRequestMethod().equals("GET")) {
                 //  List objects
                 final String namespace = pathParams[2];
                 final String bucket = pathParams[4];
-                final Map<String, String> params = new HashMap<>();
-                RestUtils.decodeQueryString(exchange.getRequestURI().getQuery(), 0, params);
+                final Map<String, String> params =
+                        Splitter.on('&')
+                                .trimResults()
+                                .withKeyValueSeparator('=')
+                                .split(exchange.getRequestURI().getQuery());
                 listObject(namespace, bucket, params.get("prefix"), exchange);
-            } else if (Regex.simpleMatch("/n/*/b/*", path)
-                    && exchange.getRequestMethod().equals("GET")) {
+            } else if (path.matches("/n/.*/b/.*") && exchange.getRequestMethod().equals("GET")) {
                 // GET bucket
                 final String namespace = pathParams[2];
                 final String bucket = pathParams[4];
                 getBucket(namespace, bucket, exchange);
             } else {
                 sendError(
-                        exchange, RestStatus.METHOD_NOT_ALLOWED, "400", "Method not allowed/found");
+                        exchange,
+                        HttpURLConnection.HTTP_BAD_METHOD,
+                        "400",
+                        "Method not allowed/found");
             }
         } catch (Exception e) {
             log.error("Exception found when processing request", e);
@@ -137,7 +137,7 @@ public class OciHttpHandler implements HttpHandler {
 
     public static void sendError(
             final HttpExchange exchange,
-            final RestStatus status,
+            final int status,
             final String errorCode,
             final String message)
             throws IOException {
@@ -150,7 +150,7 @@ public class OciHttpHandler implements HttpHandler {
         }
 
         if (errorCode == null || "HEAD".equals(exchange.getRequestMethod())) {
-            exchange.sendResponseHeaders(status.getStatus(), -1L);
+            exchange.sendResponseHeaders(status, -1L);
             exchange.close();
         } else {
             final byte[] response =
@@ -166,7 +166,7 @@ public class OciHttpHandler implements HttpHandler {
                                     + "</RequestId>"
                                     + "</Error>")
                             .getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(status.getStatus(), response.length);
+            exchange.sendResponseHeaders(status, response.length);
             exchange.getResponseBody().write(response);
             exchange.close();
         }
@@ -194,7 +194,7 @@ public class OciHttpHandler implements HttpHandler {
         final String bucketStr = MAPPER.writeValueAsString(bucket);
         final byte[] response = bucketStr.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().add("Content-Type", "application/json");
-        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), response.length);
+        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
         exchange.getResponseBody().write(response);
         exchange.close();
     }
@@ -208,10 +208,10 @@ public class OciHttpHandler implements HttpHandler {
             final String bucketStr = MAPPER.writeValueAsString(bucket);
             final byte[] response = bucketStr.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(RestStatus.OK.getStatus(), response.length);
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
             exchange.getResponseBody().write(response);
         } else {
-            sendError(exchange, RestStatus.NOT_FOUND, "404", "Bucket not found");
+            sendError(exchange, HttpURLConnection.HTTP_NOT_FOUND, "404", "Bucket not found");
         }
 
         exchange.close();
@@ -224,13 +224,11 @@ public class OciHttpHandler implements HttpHandler {
             int contentLength,
             HttpExchange exchange)
             throws IOException {
-        final BytesReference requestBody = Streams.readFully(exchange.getRequestBody());
+        // final BytesReference requestBody = Streams.readFully(exchange.getRequestBody());
+
         Preconditions.checkArgument(buckets.containsKey(bucketName), "Bucket doesn't exist");
         final LocalBucket bucket = buckets.get(bucketName);
-        bucket.putObject(
-                objectName,
-                new ByteArrayInputStream(requestBody.toBytesRef().bytes),
-                contentLength);
+        bucket.putObject(objectName, exchange.getRequestBody());
 
         log.info(
                 "Put object with namespaceName:{}, bucketName: {}, objectName: {}",
@@ -238,7 +236,7 @@ public class OciHttpHandler implements HttpHandler {
                 bucketName,
                 objectName);
         exchange.getResponseHeaders().add("Content-Type", "application/json");
-        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), -1);
+        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, -1);
         exchange.close();
     }
 
@@ -259,7 +257,7 @@ public class OciHttpHandler implements HttpHandler {
         final OSObject object = bucket.getObject(objectName);
         if (object != null) {
             exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(RestStatus.OK.getStatus(), 0);
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
             if (range != null) {
                 exchange.getResponseBody()
                         .write(
@@ -273,7 +271,7 @@ public class OciHttpHandler implements HttpHandler {
 
             exchange.close();
         } else {
-            sendError(exchange, RestStatus.NOT_FOUND, "404", "Object not found");
+            sendError(exchange, HttpURLConnection.HTTP_NOT_FOUND, "404", "Object not found");
         }
     }
 
@@ -297,11 +295,11 @@ public class OciHttpHandler implements HttpHandler {
             final byte[] response = str.getBytes(StandardCharsets.UTF_8);
 
             exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(RestStatus.OK.getStatus(), response.length);
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
             exchange.getResponseBody().write(response);
             exchange.close();
         } else {
-            sendError(exchange, RestStatus.NOT_FOUND, "404", "Object not found");
+            sendError(exchange, HttpURLConnection.HTTP_NOT_FOUND, "404", "Object not found");
         }
     }
 
@@ -332,7 +330,7 @@ public class OciHttpHandler implements HttpHandler {
         final byte[] response = str.getBytes(StandardCharsets.UTF_8);
 
         exchange.getResponseHeaders().add("Content-Type", "application/json");
-        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), response.length);
+        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
         exchange.getResponseBody().write(response);
         exchange.close();
     }
@@ -352,7 +350,7 @@ public class OciHttpHandler implements HttpHandler {
 
         bucket.deleteObject(objectName);
         exchange.getResponseHeaders().add("Content-Type", "application/json");
-        exchange.sendResponseHeaders(RestStatus.OK.getStatus(), -1);
+        exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, -1);
         exchange.close();
     }
 
