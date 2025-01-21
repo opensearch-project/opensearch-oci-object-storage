@@ -1,9 +1,5 @@
 package org.opensearch.fixtures.oci;
 
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-
 import com.oracle.bmc.Region;
 import com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
 import com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
@@ -27,6 +23,11 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 import static org.junit.Assert.assertEquals;
 
@@ -56,18 +57,13 @@ public class FixtureTests {
 
     private NonJerseyServer nonJerseyServer;
 
-    private WebTarget target;
-
     @Before
     public void setup() throws Exception {
         // start the server
         nonJerseyServer = new NonJerseyServer();
         nonJerseyServer.start();
 
-        // create the client
-        Client c = ClientBuilder.newClient();
 
-        target = c.target(NonJerseyServer.DEFAULT_BASE_URI);
         objectStorage =
                 ObjectStorageClient.builder()
                     // This will run after, and in addition to, the default
@@ -110,9 +106,16 @@ public class FixtureTests {
 
     /** Test to see that the message "Got it!" is sent in the response. */
     @Test
-    public void testResource() {
-        String responseMsg = target.path("/n/testResource").request().get(String.class);
-        assertEquals("Got it!", responseMsg);
+    public void testResource() throws IOException, InterruptedException {
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(NonJerseyServer.DEFAULT_BASE_URI+"n/testResource"))
+            .GET()
+            .build();
+
+        // Send the request and get the response
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        assertEquals("Got it!", response.body());
     }
 
     @Test
