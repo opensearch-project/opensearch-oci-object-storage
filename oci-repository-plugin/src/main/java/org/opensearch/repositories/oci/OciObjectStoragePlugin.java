@@ -11,7 +11,6 @@
 
 package org.opensearch.repositories.oci;
 
-import com.oracle.bmc.http.client.HttpProvider;
 import java.security.AccessController;
 import java.security.AllPermission;
 import java.security.Permission;
@@ -29,6 +28,7 @@ import org.opensearch.indices.recovery.RecoverySettings;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.RepositoryPlugin;
 import org.opensearch.repositories.Repository;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.http.client.HttpProvider;
 
 /** The plugin class */
 public class OciObjectStoragePlugin extends Plugin implements RepositoryPlugin {

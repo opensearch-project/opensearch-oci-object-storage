@@ -14,10 +14,6 @@ package org.opensearch.repositories.oci;
 import static org.opensearch.common.settings.Setting.boolSetting;
 import static org.opensearch.common.settings.Setting.simpleString;
 
-import com.oracle.bmc.Region;
-import com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
-import com.oracle.bmc.auth.InstancePrincipalsAuthenticationDetailsProvider;
-import com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.function.Supplier;
@@ -25,6 +21,10 @@ import lombok.extern.log4j.Log4j2;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.common.io.PathUtils;
 import org.opensearch.common.settings.Setting;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.Region;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.auth.InstancePrincipalsAuthenticationDetailsProvider;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
 
 /** Container for OCI object storage clients settings. */
 @Log4j2

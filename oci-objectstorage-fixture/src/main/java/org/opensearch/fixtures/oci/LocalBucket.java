@@ -1,6 +1,5 @@
 package org.opensearch.fixtures.oci;
 
-import com.oracle.bmc.model.BmcException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -11,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.Value;
 import org.apache.commons.io.IOUtils;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.model.BmcException;
 
 @Value
 public class LocalBucket {
