@@ -11,16 +11,16 @@
 
 package org.opensearch.repositories.oci;
 
-import com.oracle.bmc.objectstorage.ObjectStorage;
-import com.oracle.bmc.objectstorage.ObjectStorageAsync;
-import com.oracle.bmc.objectstorage.ObjectStorageAsyncClient;
-import com.oracle.bmc.objectstorage.ObjectStorageClient;
-import com.oracle.bmc.objectstorage.model.CreateBucketDetails;
-import com.oracle.bmc.objectstorage.requests.CreateBucketRequest;
-import com.oracle.bmc.objectstorage.requests.GetBucketRequest;
-import com.oracle.bmc.objectstorage.responses.CreateBucketResponse;
-import com.oracle.bmc.objectstorage.responses.GetBucketResponse;
-import com.oracle.bmc.responses.AsyncHandler;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorage;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageAsync;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageAsyncClient;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageClient;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.model.CreateBucketDetails;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.requests.CreateBucketRequest;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.requests.GetBucketRequest;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.CreateBucketResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.GetBucketResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.responses.AsyncHandler;
 import org.assertj.core.api.Assertions;
 import org.junit.After;
 import org.junit.AfterClass;

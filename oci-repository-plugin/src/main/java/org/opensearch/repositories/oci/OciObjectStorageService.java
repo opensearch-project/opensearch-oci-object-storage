@@ -11,15 +11,15 @@
 
 package org.opensearch.repositories.oci;
 
-import com.oracle.bmc.ClientConfiguration;
-import com.oracle.bmc.objectstorage.ObjectStorageAsync;
-import com.oracle.bmc.objectstorage.ObjectStorageAsyncClient;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.ClientConfiguration;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageAsync;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageAsyncClient;
 
 /** Service class to hold client instances */
 @Log4j2

@@ -7,13 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.oracle.bmc.model.Range;
-import com.oracle.bmc.objectstorage.model.Bucket;
-import com.oracle.bmc.objectstorage.model.CreateBucketDetails;
-import com.oracle.bmc.objectstorage.model.ListObjects;
-import com.oracle.bmc.objectstorage.model.ObjectSummary;
-import com.oracle.bmc.objectstorage.responses.HeadObjectResponse;
-import com.oracle.bmc.util.internal.StringUtils;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -24,6 +17,13 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.log4j.Log4j2;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.model.Range;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.model.Bucket;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.model.CreateBucketDetails;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.model.ListObjects;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.model.ObjectSummary;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.HeadObjectResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.util.internal.StringUtils;
 
 @Log4j2
 public class OciHttpHandler implements HttpHandler {
@@ -294,8 +294,8 @@ public class OciHttpHandler implements HttpHandler {
             final String str = MAPPER.writeValueAsString(headObjectResponse);
             final byte[] response = str.getBytes(StandardCharsets.UTF_8);
 
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, -1);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
             exchange.getResponseBody().write(response);
             exchange.close();
         } else {

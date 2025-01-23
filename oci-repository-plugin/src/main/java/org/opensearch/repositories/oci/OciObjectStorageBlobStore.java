@@ -14,20 +14,6 @@ package org.opensearch.repositories.oci;
 import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
 import static org.opensearch.repositories.oci.OciObjectStorageRepository.*;
 
-import com.oracle.bmc.model.BmcException;
-import com.oracle.bmc.model.Range;
-import com.oracle.bmc.objectstorage.ObjectStorageAsync;
-import com.oracle.bmc.objectstorage.model.CreateBucketDetails;
-import com.oracle.bmc.objectstorage.model.ObjectSummary;
-import com.oracle.bmc.objectstorage.requests.*;
-import com.oracle.bmc.objectstorage.responses.CreateBucketResponse;
-import com.oracle.bmc.objectstorage.responses.DeleteObjectResponse;
-import com.oracle.bmc.objectstorage.responses.GetBucketResponse;
-import com.oracle.bmc.objectstorage.responses.GetObjectResponse;
-import com.oracle.bmc.objectstorage.responses.HeadObjectResponse;
-import com.oracle.bmc.objectstorage.responses.ListObjectsResponse;
-import com.oracle.bmc.objectstorage.responses.PutObjectResponse;
-import com.oracle.bmc.responses.AsyncHandler;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,6 +45,20 @@ import org.opensearch.common.blobstore.support.PlainBlobMetadata;
 import org.opensearch.common.collect.MapBuilder;
 import org.opensearch.core.common.unit.ByteSizeUnit;
 import org.opensearch.core.common.unit.ByteSizeValue;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.model.BmcException;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.model.Range;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageAsync;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.model.CreateBucketDetails;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.model.ObjectSummary;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.requests.*;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.CreateBucketResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.DeleteObjectResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.GetBucketResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.GetObjectResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.HeadObjectResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.ListObjectsResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.PutObjectResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.responses.AsyncHandler;
 
 // Lots of code duplication with OciObjectStorageBlobStore and OciObjectStorageBlobContainer
 // Re-using the code will require significant refactoring which is needed on both
