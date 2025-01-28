@@ -19,16 +19,15 @@ repositories {
 }
 
 allprojects {
-    version = '3.0.0-SNAPSHOT'
-
+    version = '2.17.1-SNAPSHOT'
     // Force using a newer version, due to guava vulnerability CVE-2023-2976. Remove after Gradle upgrades its default version.
     checkstyle {
         toolVersion = "10.12.3"
     }
-    
+
     java {
-      targetCompatibility = JavaVersion.VERSION_21
-      sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_17
     }
 }
 
@@ -40,9 +39,9 @@ subprojects {
     apply plugin: 'com.diffplug.spotless'
 
     ext {
-        opensearch_version = System.getProperty("opensearch.version", "3.0.0-SNAPSHOT")
+        opensearch_version = System.getProperty("opensearch.version", "2.17.1-SNAPSHOT")
         sdk_version = "3.30.0"
-        jackson_version = "2.18.2"
+        jackson_version = "2.17.2"
     }
 
     repositories {
@@ -76,7 +75,7 @@ subprojects {
             force "org.bouncycastle:bcutil-jdk15to18:1.78.1"
         }
     }
-    
+
     dependencies {
         // Test dependencies
         testImplementation 'org.assertj:assertj-core:3.18.1'
