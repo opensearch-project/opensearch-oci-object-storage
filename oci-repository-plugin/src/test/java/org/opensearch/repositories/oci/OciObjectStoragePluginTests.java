@@ -34,7 +34,7 @@ import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.test.OpenSearchIntegTestCase;
-import org.opensearch.transport.Netty4ModulePlugin;
+import org.opensearch.transport.Netty4Plugin;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -62,7 +62,7 @@ public class OciObjectStoragePluginTests extends OpenSearchIntegTestCase {
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
         return Collections.unmodifiableCollection(
-                Lists.newArrayList(Netty4ModulePlugin.class, OciObjectStoragePlugin.class));
+                Lists.newArrayList(Netty4Plugin.class, OciObjectStoragePlugin.class));
     }
     /** ******************************* */
     @Test
