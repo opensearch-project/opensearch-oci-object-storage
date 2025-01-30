@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -43,6 +44,7 @@ import org.opensearch.common.blobstore.BlobStoreException;
 import org.opensearch.common.blobstore.DeleteResult;
 import org.opensearch.common.blobstore.support.PlainBlobMetadata;
 import org.opensearch.common.collect.MapBuilder;
+import org.opensearch.common.settings.Settings;
 import org.opensearch.core.common.unit.ByteSizeUnit;
 import org.opensearch.core.common.unit.ByteSizeValue;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.model.BmcException;
@@ -105,15 +107,17 @@ class OciObjectStorageBlobStore implements BlobStore {
 
     private final String bucketName;
     private final String namespace;
-    private final String clientName;
+    private final Settings cacheKey;
     private final OciObjectStorageService storageService;
     private final OciObjectStorageClientSettings clientSettings;
+    final Map<Settings, OciObjectStorageClientSettings> clientSettingsMap =
+            new ConcurrentHashMap<>();
 
     OciObjectStorageBlobStore(
             final OciObjectStorageService storageService, final RepositoryMetadata metadata) {
         this.storageService = storageService;
         this.bucketName = getSetting(BUCKET_SETTING, metadata);
-        this.clientName = CLIENT_NAME_SETTINGS.get(metadata.settings());
+        this.cacheKey = metadata.settings();
         this.namespace = getSetting(NAMESPACE_SETTING, metadata);
         this.clientSettings = new OciObjectStorageClientSettings(metadata);
         final String bucketCompartmentId =
@@ -134,7 +138,11 @@ class OciObjectStorageBlobStore implements BlobStore {
     }
 
     private ObjectStorageAsync client() throws IOException {
-        return storageService.client(clientName, clientSettings);
+        if (storageService.client(cacheKey) == null) {
+            clientSettingsMap.put(cacheKey, clientSettings);
+            storageService.refreshWithoutClearingCache(clientSettingsMap);
+        }
+        return storageService.client(cacheKey);
     }
 
     @Override
@@ -189,6 +197,8 @@ class OciObjectStorageBlobStore implements BlobStore {
 
             return getBucketResponse.getBucket() != null;
         } catch (final Exception e) {
+            log.info("Evicting client for cacheKey [{}] due to exception", cacheKey);
+            storageService.evictCache(cacheKey);
             if (e.getCause() instanceof BmcException) {
                 final BmcException bmcEx = (BmcException) e.getCause();
                 if (bmcEx.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
