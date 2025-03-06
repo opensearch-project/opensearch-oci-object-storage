@@ -34,7 +34,8 @@ public class SocketAccess {
         try {
             return AccessController.doPrivileged(operation);
         } catch (PrivilegedActionException e) {
-            throw (IOException) e.getCause();
+            if (e.getCause() instanceof IOException) throw (IOException) e.getCause();
+            throw new IOException(e.getCause());
         }
     }
 
