@@ -74,6 +74,7 @@ subprojects {
             force "org.bouncycastle:bcpkix-jdk15to18:1.78.1"
             force "org.bouncycastle:bcprov-jdk15to18:1.78.1"
             force "org.bouncycastle:bcutil-jdk15to18:1.78.1"
+            force "org.slf4j:slf4j-api:2.0.13"
         }
     }
     
