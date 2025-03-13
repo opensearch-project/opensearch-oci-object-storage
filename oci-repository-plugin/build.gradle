@@ -97,6 +97,14 @@ dependencies {
     testImplementation("org.opensearch.client:opensearch-rest-high-level-client:${opensearch_version}")
     testImplementation("org.opensearch.test:framework:${opensearch_version}")
     testImplementation "org.opensearch.plugin:transport-netty4-client:${opensearch_version}"
+    testImplementation "org.apache.logging.log4j:log4j-slf4j-impl:2.21.0"
+    testImplementation "org.apache.logging.log4j:log4j-core:2.21.0"
+    testImplementation "org.apache.logging.log4j:log4j-1.2-api:2.21.0"
+    testImplementation "org.apache.logging.log4j:log4j-jcl:2.21.0"
+    testImplementation "org.apache.logging.log4j:log4j-jul:2.21.0"
+    testImplementation "org.slf4j:slf4j-api:2.0.13"
+    //testImplementation "org.slf4j:jcl-over-slf4j:2.0.13"
+    testImplementation "org.slf4j:jul-to-slf4j:2.0.13"
 }
 
 test {
@@ -116,6 +124,7 @@ tasks.named("check").configure { dependsOn(integTest) }
 
 integTest {
     systemProperty "java.security.policy", "file://${projectDir}/src/main/resources/plugin-security.policy"
+    systemProperty 'log4j2.configurationFile', "${projectDir}/src/test/resources/log4j2-test.xml"
     testLogging.showStandardStreams = true
 
     include '**/*IT.class'
