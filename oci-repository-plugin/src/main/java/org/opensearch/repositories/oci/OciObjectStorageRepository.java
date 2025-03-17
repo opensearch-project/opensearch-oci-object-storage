@@ -22,6 +22,7 @@ import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.blobstore.BlobPath;
 import org.opensearch.common.settings.Setting;
+import org.opensearch.common.settings.Settings;
 import org.opensearch.core.common.Strings;
 import org.opensearch.core.common.unit.ByteSizeUnit;
 import org.opensearch.core.common.unit.ByteSizeValue;
@@ -35,8 +36,9 @@ import org.opensearch.repositories.blobstore.BlobStoreRepository;
 public class OciObjectStorageRepository extends BlobStoreRepository {
 
     // package private for testing
-    static final ByteSizeValue MIN_CHUNK_SIZE = new ByteSizeValue(1, ByteSizeUnit.BYTES);
-    static final ByteSizeValue MAX_CHUNK_SIZE = new ByteSizeValue(100, ByteSizeUnit.MB);
+    static final ByteSizeValue DEFAULT_CHUNK_SIZE = new ByteSizeValue(1, ByteSizeUnit.GB);
+    static final ByteSizeValue MIN_CHUNK_SIZE = new ByteSizeValue(5, ByteSizeUnit.MB);
+    static final ByteSizeValue MAX_CHUNK_SIZE = new ByteSizeValue(10, ByteSizeUnit.TB);
 
     public static final String TYPE = "oci";
 
@@ -59,7 +61,7 @@ public class OciObjectStorageRepository extends BlobStoreRepository {
     public static final Setting<ByteSizeValue> CHUNK_SIZE_SETTING =
             byteSizeSetting(
                     "chunk_size",
-                    MAX_CHUNK_SIZE,
+                    DEFAULT_CHUNK_SIZE,
                     MIN_CHUNK_SIZE,
                     MAX_CHUNK_SIZE,
                     Property.NodeScope,
@@ -68,8 +70,8 @@ public class OciObjectStorageRepository extends BlobStoreRepository {
             new Setting<>("client", "default", Function.identity());
 
     private final OciObjectStorageService storageService;
-    private final BlobPath basePath;
-    private final ByteSizeValue chunkSize;
+    private BlobPath basePath;
+    private ByteSizeValue chunkSize;
 
     OciObjectStorageRepository(
             final RepositoryMetadata metadata,
@@ -78,8 +80,15 @@ public class OciObjectStorageRepository extends BlobStoreRepository {
             final ClusterService clusterService,
             final RecoverySettings recoverySettings) {
         super(metadata, namedXContentRegistry, clusterService, recoverySettings);
-
+        loadOCIRepoMetadata();
         this.storageService = storageService;
+
+        storageService.refreshAndClearCache(
+                metadata.name(), new OciObjectStorageClientSettings(metadata));
+    }
+
+    private void loadOCIRepoMetadata() {
+        Settings settings = metadata.settings();
         String basePath = BASE_PATH_SETTING.get(metadata.settings());
         if (Strings.hasLength(basePath)) {
             BlobPath path = new BlobPath();
@@ -125,5 +134,17 @@ public class OciObjectStorageRepository extends BlobStoreRepository {
                     metadata.name(), "Setting [" + setting.getKey() + "] is empty for repository");
         }
         return value;
+    }
+
+    @Override
+    public void reload(RepositoryMetadata repositoryMetadata) {
+        if (isReloadable()) {
+            super.reload(repositoryMetadata);
+            loadOCIRepoMetadata();
+            // Refreshes the client settings
+            storageService.refreshAndClearCache(
+                    repositoryMetadata.name(),
+                    new OciObjectStorageClientSettings(repositoryMetadata));
+        }
     }
 }

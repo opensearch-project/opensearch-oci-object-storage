@@ -11,18 +11,7 @@
 
 package org.opensearch.repositories.oci;
 
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorage;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageAsync;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageAsyncClient;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageClient;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.model.CreateBucketDetails;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.requests.CreateBucketRequest;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.requests.GetBucketRequest;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.CreateBucketResponse;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.GetBucketResponse;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.responses.AsyncHandler;
 import org.assertj.core.api.Assertions;
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -58,9 +47,10 @@ public class OciObjectStorageBlobStoreTests {
                 new RepositoryMetadata("myOciRepository",
                         OciObjectStorageRepository.TYPE,
                         TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "listChildren"));
-
+        final OciObjectStorageService ociObjectStorageService = new OciObjectStorageService();
+        ociObjectStorageService.refreshAndClearCache("myOciRepository", new OciObjectStorageClientSettings(repositoryMetadata));
         final OciObjectStorageBlobStore blobStore =
-                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+                new OciObjectStorageBlobStore(ociObjectStorageService, repositoryMetadata);
 
         final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
         final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
@@ -130,9 +120,10 @@ public class OciObjectStorageBlobStoreTests {
                 new RepositoryMetadata("myOciRepository",
                         OciObjectStorageRepository.TYPE,
                         TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "testBlobStoreRead_readRange"));
-
+        final OciObjectStorageService ociObjectStorageService = new OciObjectStorageService();
+        ociObjectStorageService.refreshAndClearCache("myOciRepository", new OciObjectStorageClientSettings(repositoryMetadata));
         final OciObjectStorageBlobStore blobStore =
-                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+                new OciObjectStorageBlobStore(ociObjectStorageService, repositoryMetadata);
 
         final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
         final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
@@ -154,9 +145,10 @@ public class OciObjectStorageBlobStoreTests {
                 new RepositoryMetadata("myOciRepository",
                         OciObjectStorageRepository.TYPE,
                         TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "testBlobStoreDelete"));
-
+        final OciObjectStorageService ociObjectStorageService = new OciObjectStorageService();
+        ociObjectStorageService.refreshAndClearCache("myOciRepository", new OciObjectStorageClientSettings(repositoryMetadata));
         final OciObjectStorageBlobStore blobStore =
-                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+                new OciObjectStorageBlobStore(ociObjectStorageService, repositoryMetadata);
 
         final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
         final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
@@ -190,9 +182,10 @@ public class OciObjectStorageBlobStoreTests {
                 new RepositoryMetadata("myOciRepository",
                         OciObjectStorageRepository.TYPE,
                         TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "testBlobStoreWriteBlob"));
-
+        final OciObjectStorageService ociObjectStorageService = new OciObjectStorageService();
+        ociObjectStorageService.refreshAndClearCache("myOciRepository", new OciObjectStorageClientSettings(repositoryMetadata));
         final OciObjectStorageBlobStore blobStore =
-                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+                new OciObjectStorageBlobStore(ociObjectStorageService, repositoryMetadata);
 
         final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
         final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
@@ -213,9 +206,10 @@ public class OciObjectStorageBlobStoreTests {
                 new RepositoryMetadata("myOciRepository",
                         OciObjectStorageRepository.TYPE,
                         TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "testBlobWriteBlob_atomic"));
-
+        final OciObjectStorageService ociObjectStorageService = new OciObjectStorageService();
+        ociObjectStorageService.refreshAndClearCache("myOciRepository", new OciObjectStorageClientSettings(repositoryMetadata));
         final OciObjectStorageBlobStore blobStore =
-                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+                new OciObjectStorageBlobStore(ociObjectStorageService, repositoryMetadata);
 
         final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
         final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
@@ -237,9 +231,10 @@ public class OciObjectStorageBlobStoreTests {
                 new RepositoryMetadata("myOciRepository",
                         OciObjectStorageRepository.TYPE,
                         TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "forceBucketCreationTest", true));
-
+        final OciObjectStorageService ociObjectStorageService = new OciObjectStorageService();
+        ociObjectStorageService.refreshAndClearCache("myOciRepository", new OciObjectStorageClientSettings(repositoryMetadata));
         final OciObjectStorageBlobStore blobStore =
-                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata);
+                new OciObjectStorageBlobStore(ociObjectStorageService, repositoryMetadata);
 
         final BlobPath basePath = BlobPath.cleanPath().add(OciObjectStorageRepository.BASE_PATH_SETTING.get(repositoryMetadata.settings()));
         final BlobContainer rootBlobContainer = blobStore.blobContainer(basePath);
@@ -255,8 +250,9 @@ public class OciObjectStorageBlobStoreTests {
                 new RepositoryMetadata("myOciRepository",
                         OciObjectStorageRepository.TYPE,
                         TestConstants.getRepositorySettings(nonJerseyServer.getUrl(), "forceBucketCreationTest", false));
-
+        final OciObjectStorageService ociObjectStorageService = new OciObjectStorageService();
+        ociObjectStorageService.refreshAndClearCache("myOciRepository", new OciObjectStorageClientSettings(repositoryMetadata));
         Assertions.assertThatThrownBy(() ->
-                new OciObjectStorageBlobStore(new OciObjectStorageService(), repositoryMetadata)).hasMessageContaining("Bucket [forceBucketCreationTest] does not exist");
+                new OciObjectStorageBlobStore(ociObjectStorageService, repositoryMetadata)).hasMessageContaining("Bucket [forceBucketCreationTest] does not exist");
     }
 }
