@@ -1,32 +1,34 @@
 package org.opensearch.fixtures.oci;
 
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-
-import com.oracle.bmc.Region;
-import com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
-import com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
-import com.oracle.bmc.http.client.jersey.ApacheClientProperties;
-import com.oracle.bmc.model.Range;
-import com.oracle.bmc.objectstorage.ObjectStorage;
-import com.oracle.bmc.objectstorage.ObjectStorageClient;
-import com.oracle.bmc.objectstorage.model.CreateBucketDetails;
-import com.oracle.bmc.objectstorage.requests.*;
-import com.oracle.bmc.objectstorage.responses.*;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.Region;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.http.client.jersey.ApacheClientProperties;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.model.Range;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorage;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageClient;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.model.CreateBucketDetails;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.requests.*;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.*;
 import lombok.extern.log4j.Log4j2;
 
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.commons.io.IOUtils;
+import org.opensearch.repositories.oci.sdk.org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.opensearch.common.io.Streams;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 import static org.junit.Assert.assertEquals;
 
@@ -56,18 +58,13 @@ public class FixtureTests {
 
     private NonJerseyServer nonJerseyServer;
 
-    private WebTarget target;
-
     @Before
     public void setup() throws Exception {
         // start the server
         nonJerseyServer = new NonJerseyServer();
         nonJerseyServer.start();
 
-        // create the client
-        Client c = ClientBuilder.newClient();
 
-        target = c.target(NonJerseyServer.DEFAULT_BASE_URI);
         objectStorage =
                 ObjectStorageClient.builder()
                     // This will run after, and in addition to, the default
@@ -110,9 +107,16 @@ public class FixtureTests {
 
     /** Test to see that the message "Got it!" is sent in the response. */
     @Test
-    public void testResource() {
-        String responseMsg = target.path("/n/testResource").request().get(String.class);
-        assertEquals("Got it!", responseMsg);
+    public void testResource() throws IOException, InterruptedException {
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(NonJerseyServer.DEFAULT_BASE_URI+"n/testResource"))
+            .GET()
+            .build();
+
+        // Send the request and get the response
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        assertEquals("Got it!", response.body());
     }
 
     @Test
@@ -200,7 +204,7 @@ public class FixtureTests {
                                 .build());
         log.info("getObjectResponse: {}", getObjectResponse);
         assertEquals(
-                "myContent", Streams.readFully(getObjectResponse.getInputStream()).utf8ToString());
+                "myContent", IOUtils.toString(getObjectResponse.getInputStream(),"UTF-8"));
 
         // 4.1
         final GetObjectResponse getObjectResponseWithRange =
@@ -213,7 +217,7 @@ public class FixtureTests {
                                 .build());
         log.info("getObjectResponse: {}", getObjectResponse);
         assertEquals(
-                "my", Streams.readFully(getObjectResponseWithRange.getInputStream()).utf8ToString());
+                "my", IOUtils.toString(getObjectResponseWithRange.getInputStream(),"UTF-8"));
 
         // 5. Delete object
         final DeleteObjectResponse deleteObjectResponse =

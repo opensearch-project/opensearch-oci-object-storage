@@ -1,0 +1,55 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+// Project to relocate and shade OCI SDK and its dependencies to escape conflicts with OpenSearch and
+// potentially other plugins that could be using OCI SDK
+
+buildscript {
+    repositories {
+        mavenLocal()
+        maven { url "https://aws.oss.sonatype.org/content/repositories/snapshots" }
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+}
+
+plugins {
+    id 'com.gradleup.shadow' version '8.3.5'
+}
+
+apply plugin: 'com.gradleup.shadow'
+
+version = '1.0'
+
+jar {
+    enabled = false
+}
+
+dependencies {
+    // Please use compile only to prevent leaking original namespace to dependant projects.
+    // Works together with ShadowJar`s configurations = [project.configurations.compileClasspath]
+    compileOnly("com.oracle.oci.sdk:oci-java-sdk-common-httpclient:${sdk_version}")
+    compileOnly("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
+    compileOnly("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
+    compileOnly("com.oracle.oci.sdk:oci-java-sdk-common:${sdk_version}")
+    compileOnly("com.oracle.oci.sdk:oci-java-sdk-objectstorage-generated:${sdk_version}")
+    compileOnly("com.oracle.oci.sdk:oci-java-sdk-objectstorage-extensions:${sdk_version}")
+    compileOnly("com.oracle.oci.sdk:oci-java-sdk-circuitbreaker:${sdk_version}")
+}
+
+tasks.named('shadowJar', ShadowJar) {
+    configurations = [project.configurations.compileClasspath]
+    // Relocating dependencies with its transitive dependencies.
+    enableRelocation = true
+    relocationPrefix = "org.opensearch.repositories.oci.sdk"
+    archiveClassifier = ""
+    // Relocating META-INF/services
+    mergeServiceFiles()
+    // https://gradleup.com/shadow/getting-started/#default-java-groovy-tasks
+    // Default configuration excludes any JAR index or cryptographic signature files matching the following patterns:
+    //
+    //    META-INF/INDEX.LIST
+    //    META-INF/*.SF
+    //    META-INF/*.DSA
+    //    META-INF/*.RSA
+}
+
+tasks.build.dependsOn tasks.shadowJar

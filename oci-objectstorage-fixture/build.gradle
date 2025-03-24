@@ -24,8 +24,15 @@ apply plugin: 'eclipse'
 apply plugin: 'idea'
 
 dependencies {
+    implementation(project(path: ':oci-objectstorage-client-shaded', configuration: 'shadow'))
+
+    implementation "commons-io:commons-io:2.14.0"
+    implementation "com.google.guava:guava:32.1.2-jre"
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
+    implementation "org.apache.logging.log4j:log4j-api:2.21.0"
+    implementation "org.apache.logging.log4j:log4j-core:2.21.0"
+
     testImplementation 'junit:junit:4.13.2'
-    implementation("org.opensearch:opensearch:${opensearch_version}")
 }
 
 test {

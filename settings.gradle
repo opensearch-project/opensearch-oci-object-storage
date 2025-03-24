@@ -12,5 +12,6 @@ plugins {
 }
 
 rootProject.name = 'oci-opensearch-repository'
+include('oci-objectstorage-client-shaded')
 include('oci-objectstorage-fixture')
 include('oci-repository-plugin')

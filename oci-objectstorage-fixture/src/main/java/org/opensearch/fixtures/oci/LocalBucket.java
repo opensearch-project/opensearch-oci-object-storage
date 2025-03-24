@@ -1,7 +1,5 @@
 package org.opensearch.fixtures.oci;
 
-import com.google.common.base.Preconditions;
-import com.oracle.bmc.model.BmcException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -12,18 +10,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.Value;
 import org.apache.commons.io.IOUtils;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.model.BmcException;
 
 @Value
 public class LocalBucket {
     Map<String, OSObject> prefixToObjectMap = new ConcurrentHashMap<>();
     String name;
 
-    public void putObject(String objectName, InputStream inputStream, int contentLength)
-            throws IOException {
-        Preconditions.checkArgument(
-                contentLength < Integer.MAX_VALUE,
-                "Local object storage is currently not designed to handle very large objects");
-        final byte[] objectData = IOUtils.readFully(inputStream, contentLength);
+    public void putObject(String objectName, InputStream inputStream) throws IOException {
+        final byte[] objectData = IOUtils.toByteArray(inputStream);
         final OSObject osObject = new OSObject(objectName, objectData);
         prefixToObjectMap.put(objectName, osObject);
     }
