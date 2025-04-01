@@ -13,6 +13,7 @@ package org.opensearch.repositories.oci;
 
 import static org.opensearch.common.settings.Setting.boolSetting;
 import static org.opensearch.common.settings.Setting.simpleString;
+import static org.opensearch.repositories.oci.OciObjectStorageRepository.*;
 
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -21,6 +22,7 @@ import lombok.extern.log4j.Log4j2;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.common.io.PathUtils;
 import org.opensearch.common.settings.Setting;
+import org.opensearch.common.settings.Settings;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.Region;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.auth.InstancePrincipalsAuthenticationDetailsProvider;
@@ -62,28 +64,49 @@ public class OciObjectStorageClientSettings {
     /** The credentials used by the client to connect to the Storage endpoint. */
     private final BasicAuthenticationDetailsProvider authenticationDetailsProvider;
 
+    private final String clientName;
+
     /** The Storage endpoint URL the client should talk to. Null value sets the default. */
     private final String endpoint;
 
-    OciObjectStorageClientSettings(final RepositoryMetadata metadata) {
-        this.endpoint = OciObjectStorageRepository.getSetting(ENDPOINT_SETTING, metadata);
-        final boolean isInstancePrincipal =
-                OciObjectStorageRepository.getSetting(INSTANCE_PRINCIPAL, metadata);
+    private final boolean isInstancePrincipal;
 
+    private final String userId;
+    private final String tenantId;
+    private final String fingerprint;
+    private final String credentialsFilePath;
+
+    /** The region to access storage service */
+    private final Region region;
+
+    OciObjectStorageClientSettings(final RepositoryMetadata metadata) {
+        Settings settings = metadata.settings();
+        this.clientName = CLIENT_NAME_SETTINGS.get(settings);
+        this.endpoint = OciObjectStorageRepository.getSetting(ENDPOINT_SETTING, metadata);
+        isInstancePrincipal = OciObjectStorageRepository.getSetting(INSTANCE_PRINCIPAL, metadata);
+
+        this.userId =
+                !isInstancePrincipal
+                        ? OciObjectStorageRepository.getSetting(USER_ID_SETTING, metadata)
+                        : null;
+        this.tenantId =
+                !isInstancePrincipal
+                        ? OciObjectStorageRepository.getSetting(TENANT_ID_SETTING, metadata)
+                        : null;
+        this.fingerprint =
+                !isInstancePrincipal
+                        ? OciObjectStorageRepository.getSetting(FINGERPRINT_SETTING, metadata)
+                        : null;
+        this.credentialsFilePath =
+                !isInstancePrincipal
+                        ? OciObjectStorageRepository.getSetting(CREDENTIALS_FILE_SETTING, metadata)
+                        : null;
+        String regionStr = OciObjectStorageRepository.getSetting(REGION_SETTING, metadata);
+
+        this.region = Region.fromRegionCodeOrId(regionStr);
         // If we are not using instance principal we are going to have to provide user principal
         // info
         if (!isInstancePrincipal) {
-            final String userId = OciObjectStorageRepository.getSetting(USER_ID_SETTING, metadata);
-            final String tenantId =
-                    OciObjectStorageRepository.getSetting(TENANT_ID_SETTING, metadata);
-            final String fingerprint =
-                    OciObjectStorageRepository.getSetting(FINGERPRINT_SETTING, metadata);
-            final String credentialsFilePath =
-                    OciObjectStorageRepository.getSetting(CREDENTIALS_FILE_SETTING, metadata);
-            final String regionStr =
-                    OciObjectStorageRepository.getSetting(REGION_SETTING, metadata);
-
-            final Region region = Region.fromRegionCodeOrId(regionStr);
 
             log.info(
                     "Initializing client settings with:\n"
@@ -116,6 +139,10 @@ public class OciObjectStorageClientSettings {
             log.info("Initializing client using instance principals");
             this.authenticationDetailsProvider = toAuthDetailsProvider();
         }
+    }
+
+    public String getClientName() {
+        return clientName;
     }
 
     public String getEndpoint() {
@@ -152,5 +179,9 @@ public class OciObjectStorageClientSettings {
             log.error("Failure calling toAuthDetailsProvider", ex);
             throw ex;
         }
+    }
+
+    public boolean isInstancePrincipal() {
+        return isInstancePrincipal;
     }
 }

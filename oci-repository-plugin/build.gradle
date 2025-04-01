@@ -116,6 +116,7 @@ tasks.named("check").configure { dependsOn(integTest) }
 
 integTest {
     systemProperty "java.security.policy", "file://${projectDir}/src/main/resources/plugin-security.policy"
+    systemProperty 'log4j2.configurationFile', "${projectDir}/src/test/resources/log4j2-test.xml"
     testLogging.showStandardStreams = true
 
     include '**/*IT.class'

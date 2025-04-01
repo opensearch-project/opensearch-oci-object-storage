@@ -88,6 +88,6 @@ class OciObjectStorageBlobContainer extends AbstractBlobContainer {
 
     private String buildKey(String blobName) {
         assert blobName != null;
-        return path().add(blobName).buildAsString();
+        return path().buildAsString() + blobName;
     }
 }
