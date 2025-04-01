@@ -71,13 +71,13 @@ public class OciObjectStorageClientSettings {
 
     private final boolean isInstancePrincipal;
 
-    private String userId;
-    private String tenantId;
-    private String fingerprint;
-    private String credentialsFilePath;
+    private final String userId;
+    private final String tenantId;
+    private final String fingerprint;
+    private final String credentialsFilePath;
 
     /** The region to access storage service */
-    private Region region;
+    private final Region region;
 
     OciObjectStorageClientSettings(final RepositoryMetadata metadata) {
         Settings settings = metadata.settings();
@@ -85,17 +85,28 @@ public class OciObjectStorageClientSettings {
         this.endpoint = OciObjectStorageRepository.getSetting(ENDPOINT_SETTING, metadata);
         isInstancePrincipal = OciObjectStorageRepository.getSetting(INSTANCE_PRINCIPAL, metadata);
 
+        this.userId =
+                !isInstancePrincipal
+                        ? OciObjectStorageRepository.getSetting(USER_ID_SETTING, metadata)
+                        : null;
+        this.tenantId =
+                !isInstancePrincipal
+                        ? OciObjectStorageRepository.getSetting(TENANT_ID_SETTING, metadata)
+                        : null;
+        this.fingerprint =
+                !isInstancePrincipal
+                        ? OciObjectStorageRepository.getSetting(FINGERPRINT_SETTING, metadata)
+                        : null;
+        this.credentialsFilePath =
+                !isInstancePrincipal
+                        ? OciObjectStorageRepository.getSetting(CREDENTIALS_FILE_SETTING, metadata)
+                        : null;
+        String regionStr = OciObjectStorageRepository.getSetting(REGION_SETTING, metadata);
+
+        this.region = Region.fromRegionCodeOrId(regionStr);
         // If we are not using instance principal we are going to have to provide user principal
         // info
         if (!isInstancePrincipal) {
-            this.userId = OciObjectStorageRepository.getSetting(USER_ID_SETTING, metadata);
-            this.tenantId = OciObjectStorageRepository.getSetting(TENANT_ID_SETTING, metadata);
-            this.fingerprint = OciObjectStorageRepository.getSetting(FINGERPRINT_SETTING, metadata);
-            this.credentialsFilePath =
-                    OciObjectStorageRepository.getSetting(CREDENTIALS_FILE_SETTING, metadata);
-            String regionStr = OciObjectStorageRepository.getSetting(REGION_SETTING, metadata);
-
-            final Region region = Region.fromRegionCodeOrId(regionStr);
 
             log.info(
                     "Initializing client settings with:\n"
@@ -172,25 +183,5 @@ public class OciObjectStorageClientSettings {
 
     public boolean isInstancePrincipal() {
         return isInstancePrincipal;
-    }
-
-    public Region getRegion() {
-        return region;
-    }
-
-    public String getUserId() {
-        return userId;
-    }
-
-    public String getTenantId() {
-        return tenantId;
-    }
-
-    public String getFingerprint() {
-        return fingerprint;
-    }
-
-    public String getCredentialsFilePath() {
-        return credentialsFilePath;
     }
 }
