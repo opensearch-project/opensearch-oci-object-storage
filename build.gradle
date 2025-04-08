@@ -68,9 +68,9 @@ subprojects {
             force "org.apache.httpcomponents:httpclient:4.5.14"
             // Force spotless depending on newer version of guava due to CVE-2023-2976. Remove after spotless upgrades.
             force "com.google.guava:guava:32.1.2-jre"
-            // Force opensearch transport-netty4-client depending on newer version of netty-handler due to CVE-2023-34462.
+            // Force opensearch transport-netty4-client depending on newer version of netty-handler due to CVE-2025-25193, CVE-2025-24970.
             // Remove after upgrading the compiled opensearch version.
-            force "io.netty:netty-handler:4.1.94.Final"
+            force "io.netty:netty-handler:4.1.118.Final"
             force "org.bouncycastle:bcpkix-jdk15to18:1.78.1"
             force "org.bouncycastle:bcprov-jdk15to18:1.78.1"
             force "org.bouncycastle:bcutil-jdk15to18:1.78.1"
