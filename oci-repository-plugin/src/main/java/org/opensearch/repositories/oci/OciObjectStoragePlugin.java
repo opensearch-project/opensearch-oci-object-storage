@@ -11,10 +11,6 @@
 
 package org.opensearch.repositories.oci;
 
-import java.security.AccessController;
-import java.security.AllPermission;
-import java.security.Permission;
-import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -40,27 +36,6 @@ public class OciObjectStoragePlugin extends Plugin implements RepositoryPlugin {
     public OciObjectStoragePlugin(final Settings settings) {
         this.storageService = createStorageService();
         this.settings = settings;
-
-        /*
-         * Work around security bug while using Instance Principal Authentication
-         * where adding the required java.net.SocketPermission to oci-repository-plugin/src/main/resources/plugin-security.policy
-         * doesn't fix the issue. See https://github.com/opensearch-project/opensearch-oci-object-storage/issues/13
-         */
-        AccessController.doPrivileged(
-                (PrivilegedAction<Object>)
-                        () -> {
-                            System.setSecurityManager(
-                                    new SecurityManager() {
-
-                                        @Override
-                                        public void checkPermission(Permission perm) {
-                                            if (perm instanceof AllPermission) {
-                                                throw new SecurityException();
-                                            }
-                                        }
-                                    });
-                            return null;
-                        });
 
         // Hack to force Jersey to load first as a default provider
         HttpProvider.getDefault();

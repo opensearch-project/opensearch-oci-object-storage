@@ -19,8 +19,7 @@ repositories {
 }
 
 allprojects {
-    version = '3.0.0-SNAPSHOT'
-
+    version = '3.0.0'
     // Force using a newer version, due to guava vulnerability CVE-2023-2976. Remove after Gradle upgrades its default version.
     checkstyle {
         toolVersion = "10.12.3"
@@ -40,7 +39,7 @@ subprojects {
     apply plugin: 'com.diffplug.spotless'
 
     ext {
-        opensearch_version = System.getProperty("opensearch.version", "3.0.0-SNAPSHOT")
+        opensearch_version = System.getProperty("opensearch.version", "3.0.0")
         sdk_version = "3.30.0"
         jackson_version = "2.18.2"
     }
@@ -61,14 +60,14 @@ subprojects {
             force "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
             force "com.fasterxml.jackson.core:jackson-core:${jackson_version}"
             force "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
-            force "commons-codec:commons-codec:1.15"
-            force "org.apache.httpcomponents:httpcore:4.4.15"
+            force "commons-codec:commons-codec:1.16.1"
+            force "org.apache.httpcomponents.core5:httpcore5:5.3.4"
             force "jakarta.annotation:jakarta.annotation-api:2.1.1"
             force "org.javassist:javassist:3.25.0-GA"
-            force "org.apache.httpcomponents:httpclient:4.5.14"
+            force "org.apache.httpcomponents.client5:httpclient5:5.4.4"
             // Force spotless depending on newer version of guava due to CVE-2023-2976. Remove after spotless upgrades.
-            force "com.google.guava:guava:32.1.2-jre"
-            // Force opensearch transport-netty4-client depending on newer version of netty-handler due to CVE-2025-25193, CVE-2025-24970.
+            force "com.google.guava:guava:33.0.0-jre"
+            // Force opensearch transport-netty4-client depending on newer version of netty-handler due to CVE-2023-34462.
             // Remove after upgrading the compiled opensearch version.
             force "io.netty:netty-handler:4.1.118.Final"
             force "org.bouncycastle:bcpkix-jdk15to18:1.78.1"
