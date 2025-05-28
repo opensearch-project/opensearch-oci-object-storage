@@ -29,7 +29,7 @@ import org.opensearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResp
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.action.support.master.AcknowledgedResponse;
+import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
 import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.client.Node;
 import org.opensearch.client.RequestOptions;
@@ -242,7 +242,7 @@ public class OciObjectStoragePluginIT extends OpenSearchRestTestCase {
                 restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
 
         logger.info("got search index response to test metrics {}", searchResponse);
-        Assertions.assertThat(searchResponse.getHits().getTotalHits().value)
+        Assertions.assertThat(searchResponse.getHits().getTotalHits().value())
                 .isEqualTo(expectedResults);
         return searchResponse;
     }

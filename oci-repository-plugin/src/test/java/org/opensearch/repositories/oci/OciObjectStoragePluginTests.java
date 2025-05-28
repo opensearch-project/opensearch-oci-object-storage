@@ -22,7 +22,7 @@ import org.opensearch.action.admin.cluster.snapshots.create.CreateSnapshotRespon
 import org.opensearch.action.admin.cluster.snapshots.get.GetSnapshotsResponse;
 import org.opensearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResponse;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.action.support.master.AcknowledgedResponse;
+import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
 import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.client.*;
 import org.opensearch.common.settings.Settings;
@@ -35,6 +35,7 @@ import org.opensearch.plugins.Plugin;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.transport.Netty4ModulePlugin;
+import org.opensearch.transport.client.Client;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -258,7 +259,7 @@ public class OciObjectStoragePluginTests extends OpenSearchIntegTestCase {
                 client.prepareSearch(indexName).setSource(searchSourceBuilder).get();
 
         logger.info("got search index response to test metrics {}", searchResponse);
-        Assertions.assertThat(searchResponse.getHits().getTotalHits().value)
+        Assertions.assertThat(searchResponse.getHits().getTotalHits().value())
                 .isEqualTo(expectedResults);
         return searchResponse;
     }
