@@ -6,7 +6,7 @@ plugins {
     id 'jacoco'
     id 'java'
     id 'java-library'
-    id "com.diffplug.spotless" version "6.23.3"
+    id "com.diffplug.spotless" version "7.0.0"
     id 'idea'
     id 'eclipse'
 }
@@ -22,7 +22,7 @@ allprojects {
     version = '3.0.0'
     // Force using a newer version, due to guava vulnerability CVE-2023-2976. Remove after Gradle upgrades its default version.
     checkstyle {
-        toolVersion = "10.12.3"
+        toolVersion = "10.14.2"
     }
     
     java {
@@ -49,32 +49,6 @@ subprojects {
         maven { url "https://aws.oss.sonatype.org/content/repositories/snapshots" }
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
-    }
-
-    // Fix dependency collision with opensearch
-    configurations.all {
-        if (it.state != Configuration.State.UNRESOLVED) return
-        resolutionStrategy {
-            force "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:${jackson_version}"
-            force "com.fasterxml.jackson.core:jackson-annotations:${jackson_version}"
-            force "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
-            force "com.fasterxml.jackson.core:jackson-core:${jackson_version}"
-            force "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
-            force "commons-codec:commons-codec:1.16.1"
-            force "org.apache.httpcomponents.core5:httpcore5:5.3.4"
-            force "jakarta.annotation:jakarta.annotation-api:2.1.1"
-            force "org.javassist:javassist:3.25.0-GA"
-            force "org.apache.httpcomponents.client5:httpclient5:5.4.4"
-            // Force spotless depending on newer version of guava due to CVE-2023-2976. Remove after spotless upgrades.
-            force "com.google.guava:guava:33.0.0-jre"
-            // Force opensearch transport-netty4-client depending on newer version of netty-handler due to CVE-2023-34462.
-            // Remove after upgrading the compiled opensearch version.
-            force "io.netty:netty-handler:4.1.118.Final"
-            force "org.bouncycastle:bcpkix-jdk15to18:1.78.1"
-            force "org.bouncycastle:bcprov-jdk15to18:1.78.1"
-            force "org.bouncycastle:bcutil-jdk15to18:1.78.1"
-            force "org.slf4j:slf4j-api:2.0.13"
-        }
     }
     
     dependencies {
@@ -120,7 +94,7 @@ subprojects {
             removeUnusedImports()
 
             // apply a specific flavor of google-java-format
-            googleJavaFormat().aosp().reflowLongStrings()
+            googleJavaFormat('1.24.0').aosp().reflowLongStrings()
             // fix formatting of type annotations
             formatAnnotations()
         }

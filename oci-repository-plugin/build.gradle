@@ -92,9 +92,8 @@ dependencies {
     implementation ("net.jodah:failsafe:2.4.0")
     implementation("jakarta.ws.rs:jakarta.ws.rs-api:2.1.6")
     // https://mvnrepository.com/artifact/org.opensearch/opensearch-agent
-    implementation("org.opensearch:opensearch-agent:3.0.0")
+    testImplementation("org.opensearch:opensearch-agent:3.0.0")
     testImplementation(project(":oci-objectstorage-fixture"))
-
     testImplementation("org.opensearch.client:opensearch-rest-high-level-client:${opensearch_version}")
     testImplementation("org.opensearch.test:framework:${opensearch_version}")
     testImplementation "org.opensearch.plugin:transport-netty4-client:${opensearch_version}"
