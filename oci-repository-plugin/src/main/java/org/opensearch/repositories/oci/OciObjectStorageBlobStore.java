@@ -167,16 +167,14 @@ class OciObjectStorageBlobStore implements BlobStore {
         try (ObjectStorageClientReference clientRef = clientReference()) {
 
             final GetBucketResponse getBucketResponse =
-                    SocketAccess.doPrivilegedIOException(
-                            () ->
-                                    clientRef
-                                            .get()
-                                            .getBucket(
-                                                    GetBucketRequest.builder()
-                                                            .bucketName(bucketName)
-                                                            .namespaceName(namespace)
-                                                            .retryConfiguration(RETRY_CONFIGURATION)
-                                                            .build()));
+                    clientRef
+                            .get()
+                            .getBucket(
+                                    GetBucketRequest.builder()
+                                            .bucketName(bucketName)
+                                            .namespaceName(namespace)
+                                            .retryConfiguration(RETRY_CONFIGURATION)
+                                            .build());
 
             return getBucketResponse.getBucket() != null;
         } catch (final Exception e) {
@@ -207,29 +205,24 @@ class OciObjectStorageBlobStore implements BlobStore {
     private void createBucket(
             final String bucketCompartmentId, final String namespace, final String bucketName) {
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            SocketAccess.doPrivilegedVoidIOException(
-                    () ->
-                            clientRef
-                                    .get()
-                                    .createBucket(
-                                            CreateBucketRequest.builder()
-                                                    .namespaceName(namespace)
-                                                    .retryConfiguration(RETRY_CONFIGURATION)
-                                                    .createBucketDetails(
-                                                            CreateBucketDetails.builder()
-                                                                    .compartmentId(
-                                                                            bucketCompartmentId)
-                                                                    .name(bucketName)
-                                                                    .storageTier(
-                                                                            CreateBucketDetails
-                                                                                    .StorageTier
-                                                                                    .Standard)
-                                                                    .publicAccessType(
-                                                                            CreateBucketDetails
-                                                                                    .PublicAccessType
-                                                                                    .NoPublicAccess)
-                                                                    .build())
-                                                    .build()));
+            clientRef
+                    .get()
+                    .createBucket(
+                            CreateBucketRequest.builder()
+                                    .namespaceName(namespace)
+                                    .retryConfiguration(RETRY_CONFIGURATION)
+                                    .createBucketDetails(
+                                            CreateBucketDetails.builder()
+                                                    .compartmentId(bucketCompartmentId)
+                                                    .name(bucketName)
+                                                    .storageTier(
+                                                            CreateBucketDetails.StorageTier
+                                                                    .Standard)
+                                                    .publicAccessType(
+                                                            CreateBucketDetails.PublicAccessType
+                                                                    .NoPublicAccess)
+                                                    .build())
+                                    .build());
 
         } catch (IOException e) {
             throw new BlobStoreException(
@@ -264,26 +257,21 @@ class OciObjectStorageBlobStore implements BlobStore {
 
         final MapBuilder<String, BlobMetadata> mapBuilder = MapBuilder.newMapBuilder();
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            SocketAccess.doPrivilegedVoidIOException(
-                    () -> {
-                        try {
-                            fullListing(clientRef.get(), pathPrefix).stream()
-                                    .forEach(
-                                            summary -> {
-                                                String suffixName =
-                                                        summary.getName().substring(path.length());
-                                                final long size =
-                                                        summary.getSize() != null
-                                                                ? summary.getSize()
-                                                                : 0;
-                                                PlainBlobMetadata metadata =
-                                                        new PlainBlobMetadata(suffixName, size);
-                                                mapBuilder.put(suffixName, metadata);
-                                            });
-                        } catch (ExecutionException | InterruptedException | TimeoutException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
+
+            try {
+                fullListing(clientRef.get(), pathPrefix).stream()
+                        .forEach(
+                                summary -> {
+                                    String suffixName = summary.getName().substring(path.length());
+                                    final long size =
+                                            summary.getSize() != null ? summary.getSize() : 0;
+                                    PlainBlobMetadata metadata =
+                                            new PlainBlobMetadata(suffixName, size);
+                                    mapBuilder.put(suffixName, metadata);
+                                });
+            } catch (ExecutionException | InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         return mapBuilder.immutableMap();
@@ -295,30 +283,27 @@ class OciObjectStorageBlobStore implements BlobStore {
 
         final MapBuilder<String, BlobContainer> mapBuilder = MapBuilder.newMapBuilder();
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            SocketAccess.doPrivilegedVoidIOException(
-                    () -> {
-                        try {
-                            fullListing(clientRef.get(), pathStr).stream()
-                                    .map(
-                                            objectSummary ->
-                                                    objectSummary
-                                                            .getName()
-                                                            .substring(pathStr.length())
-                                                            .split("/"))
-                                    .filter(name -> name.length > 1 && !name[0].isEmpty())
-                                    .map(name -> name[0])
-                                    .distinct()
-                                    .forEach(
-                                            childName -> {
-                                                mapBuilder.put(
-                                                        childName,
-                                                        new OciObjectStorageBlobContainer(
-                                                                path.add(childName), this));
-                                            });
-                        } catch (ExecutionException | InterruptedException | TimeoutException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
+            try {
+                fullListing(clientRef.get(), pathStr).stream()
+                        .map(
+                                objectSummary ->
+                                        objectSummary
+                                                .getName()
+                                                .substring(pathStr.length())
+                                                .split("/"))
+                        .filter(name -> name.length > 1 && !name[0].isEmpty())
+                        .map(name -> name[0])
+                        .distinct()
+                        .forEach(
+                                childName -> {
+                                    mapBuilder.put(
+                                            childName,
+                                            new OciObjectStorageBlobContainer(
+                                                    path.add(childName), this));
+                                });
+            } catch (ExecutionException | InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
         }
         return mapBuilder.immutableMap();
     }
@@ -333,28 +318,25 @@ class OciObjectStorageBlobStore implements BlobStore {
         final String opcClientRequestId = createClientRequestId("getObjects");
         final long startTime = System.currentTimeMillis();
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            return SocketAccess.doPrivilegedIOException(
-                    () -> {
-                        log.debug(
-                                "Getting object from '/n/{}/b/{}/o/{}'." + " OPC-REQUEST-ID: {}",
-                                namespace,
-                                bucketName,
-                                blobName,
-                                opcClientRequestId);
-                        DownloadConfiguration downloadConfiguration =
-                                DownloadConfiguration.builder().build();
-                        DownloadManager downloadManager =
-                                new DownloadManager(clientRef.get(), downloadConfiguration);
-                        return downloadManager
-                                .getObject(
-                                        GetObjectRequest.builder()
-                                                .bucketName(bucketName)
-                                                .namespaceName(namespace)
-                                                .objectName(blobName)
-                                                .retryConfiguration(RETRY_CONFIGURATION)
-                                                .build())
-                                .getInputStream();
-                    });
+
+            log.debug(
+                    "Getting object from '/n/{}/b/{}/o/{}'." + " OPC-REQUEST-ID: {}",
+                    namespace,
+                    bucketName,
+                    blobName,
+                    opcClientRequestId);
+            DownloadConfiguration downloadConfiguration = DownloadConfiguration.builder().build();
+            DownloadManager downloadManager =
+                    new DownloadManager(clientRef.get(), downloadConfiguration);
+            return downloadManager
+                    .getObject(
+                            GetObjectRequest.builder()
+                                    .bucketName(bucketName)
+                                    .namespaceName(namespace)
+                                    .objectName(blobName)
+                                    .retryConfiguration(RETRY_CONFIGURATION)
+                                    .build())
+                    .getInputStream();
         }
     }
 
@@ -381,23 +363,19 @@ class OciObjectStorageBlobStore implements BlobStore {
         }
 
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            return SocketAccess.doPrivilegedIOException(
-                    () -> {
-                        DownloadConfiguration downloadConfiguration =
-                                DownloadConfiguration.builder().build();
-                        DownloadManager downloadManager =
-                                new DownloadManager(clientRef.get(), downloadConfiguration);
-                        return downloadManager
-                                .getObject(
-                                        GetObjectRequest.builder()
-                                                .bucketName(bucketName)
-                                                .namespaceName(namespace)
-                                                .objectName(blobName)
-                                                .retryConfiguration(RETRY_CONFIGURATION)
-                                                .range(new Range(position, position + length - 1))
-                                                .build())
-                                .getInputStream();
-                    });
+            DownloadConfiguration downloadConfiguration = DownloadConfiguration.builder().build();
+            DownloadManager downloadManager =
+                    new DownloadManager(clientRef.get(), downloadConfiguration);
+            return downloadManager
+                    .getObject(
+                            GetObjectRequest.builder()
+                                    .bucketName(bucketName)
+                                    .namespaceName(namespace)
+                                    .objectName(blobName)
+                                    .retryConfiguration(RETRY_CONFIGURATION)
+                                    .range(new Range(position, position + length - 1))
+                                    .build())
+                    .getInputStream();
         }
     }
 
@@ -413,8 +391,7 @@ class OciObjectStorageBlobStore implements BlobStore {
             String blobName, InputStream inputStream, long blobSize, boolean failIfAlreadyExists)
             throws IOException {
         // we will always do multipart uploads
-        SocketAccess.doPrivilegedVoidIOException(
-                () -> putObject(inputStream, blobSize, blobName, !failIfAlreadyExists));
+        putObject(inputStream, blobSize, blobName, !failIfAlreadyExists);
     }
 
     /**
@@ -510,69 +487,60 @@ class OciObjectStorageBlobStore implements BlobStore {
      */
     void deleteBlobsIgnoringIfNotExists(Collection<String> blobNames) throws IOException {
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            SocketAccess.doPrivilegedVoidIOException(
-                    () ->
-                            blobNames.stream()
-                                    .forEach(
-                                            blobName -> {
-                                                List<ObjectSummary> objectSummaries;
-                                                objectSummaries =
-                                                        clientRef
-                                                                .get()
-                                                                .listObjects(
-                                                                        ListObjectsRequest.builder()
-                                                                                .bucketName(
-                                                                                        bucketName)
-                                                                                .namespaceName(
-                                                                                        namespace)
-                                                                                .prefix(blobName)
-                                                                                .retryConfiguration(
-                                                                                        RETRY_CONFIGURATION)
-                                                                                .build())
-                                                                .getListObjects()
-                                                                .getObjects();
+            blobNames.stream()
+                    .forEach(
+                            blobName -> {
+                                List<ObjectSummary> objectSummaries;
+                                objectSummaries =
+                                        clientRef
+                                                .get()
+                                                .listObjects(
+                                                        ListObjectsRequest.builder()
+                                                                .bucketName(bucketName)
+                                                                .namespaceName(namespace)
+                                                                .prefix(blobName)
+                                                                .retryConfiguration(
+                                                                        RETRY_CONFIGURATION)
+                                                                .build())
+                                                .getListObjects()
+                                                .getObjects();
 
-                                                if (objectSummaries.size() > 1) {
-                                                    log.error("will not delete {}", blobName);
-                                                    throw new RuntimeException(
-                                                            "Something is not right, when trying to"
-                                                                + " delete objects, we found more"
-                                                                + " than one object for the same"
-                                                                + " blob");
-                                                }
-                                                if (objectSummaries.size() == 1) {
-                                                    final String opcClientRequestId =
-                                                            createClientRequestId(
-                                                                    "DELETE-ignoring-if-exists");
-                                                    final ObjectSummary objectSummary =
-                                                            objectSummaries.get(0);
-                                                    final String objectName =
-                                                            objectSummary.getName();
-                                                    final Instant start = Instant.now();
-                                                    final DeleteObjectRequest deleteObjectRequest =
-                                                            DeleteObjectRequest.builder()
-                                                                    .bucketName(bucketName)
-                                                                    .namespaceName(namespace)
-                                                                    .objectName(objectName)
-                                                                    .retryConfiguration(
-                                                                            RETRY_CONFIGURATION)
-                                                                    .opcClientRequestId(
-                                                                            opcClientRequestId)
-                                                                    .build();
-                                                    Failsafe.with(
-                                                                    getRetryPolicy(
-                                                                            objectName,
-                                                                            opcClientRequestId,
-                                                                            start.toEpochMilli(),
-                                                                            "DELETE-ignoring-if-exists"))
-                                                            .run(
-                                                                    () ->
-                                                                            clientRef
-                                                                                    .get()
-                                                                                    .deleteObject(
-                                                                                            deleteObjectRequest));
-                                                }
-                                            }));
+                                if (objectSummaries.size() > 1) {
+                                    log.error("will not delete {}", blobName);
+                                    throw new RuntimeException(
+                                            "Something is not right, when trying to"
+                                                    + " delete objects, we found more"
+                                                    + " than one object for the same"
+                                                    + " blob");
+                                }
+                                if (objectSummaries.size() == 1) {
+                                    final String opcClientRequestId =
+                                            createClientRequestId("DELETE-ignoring-if-exists");
+                                    final ObjectSummary objectSummary = objectSummaries.get(0);
+                                    final String objectName = objectSummary.getName();
+                                    final Instant start = Instant.now();
+                                    final DeleteObjectRequest deleteObjectRequest =
+                                            DeleteObjectRequest.builder()
+                                                    .bucketName(bucketName)
+                                                    .namespaceName(namespace)
+                                                    .objectName(objectName)
+                                                    .retryConfiguration(RETRY_CONFIGURATION)
+                                                    .opcClientRequestId(opcClientRequestId)
+                                                    .build();
+                                    Failsafe.with(
+                                                    getRetryPolicy(
+                                                            objectName,
+                                                            opcClientRequestId,
+                                                            start.toEpochMilli(),
+                                                            "DELETE-ignoring-if-exists"))
+                                            .run(
+                                                    () ->
+                                                            clientRef
+                                                                    .get()
+                                                                    .deleteObject(
+                                                                            deleteObjectRequest));
+                                }
+                            });
         }
     }
 
