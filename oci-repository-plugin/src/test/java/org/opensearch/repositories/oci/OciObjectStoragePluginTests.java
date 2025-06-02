@@ -69,7 +69,7 @@ public class OciObjectStoragePluginTests extends OpenSearchIntegTestCase {
     @Test
     public void testServer() throws Exception {
         try (NonJerseyServer nonJerseyServer = new NonJerseyServer()) {
-            SocketAccess.doPrivilegedVoidIOException(nonJerseyServer::start);
+            nonJerseyServer.start();
             // Test transport
             ensureGreen();
             final Client transportClient = client();
@@ -93,7 +93,7 @@ public class OciObjectStoragePluginTests extends OpenSearchIntegTestCase {
             // 4. Delete snapshot from repository
             testDeleteSnapshotFromRepository(transportClient);
 
-            SocketAccess.doPrivilegedVoidIOException(nonJerseyServer::close);
+            nonJerseyServer.close();
         }
     }
 
