@@ -20,12 +20,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -33,11 +28,7 @@ import lombok.extern.log4j.Log4j2;
 import net.jodah.failsafe.Failsafe;
 import net.jodah.failsafe.RetryPolicy;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
-import org.opensearch.common.blobstore.BlobContainer;
-import org.opensearch.common.blobstore.BlobMetadata;
-import org.opensearch.common.blobstore.BlobPath;
-import org.opensearch.common.blobstore.BlobStoreException;
-import org.opensearch.common.blobstore.DeleteResult;
+import org.opensearch.common.blobstore.*;
 import org.opensearch.common.blobstore.support.PlainBlobMetadata;
 import org.opensearch.common.collect.MapBuilder;
 import org.opensearch.common.settings.Settings;
@@ -51,6 +42,10 @@ import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.model.Ob
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.requests.*;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.GetBucketResponse;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.responses.ListObjectsResponse;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.transfer.DownloadConfiguration;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.transfer.DownloadManager;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.transfer.UploadConfiguration;
+import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.transfer.UploadManager;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.retrier.RetryConfiguration;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.waiter.ExponentialBackoffDelayStrategy;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.waiter.MaxAttemptsTerminationStrategy;
@@ -62,7 +57,7 @@ import org.opensearch.repositories.oci.sdk.com.oracle.bmc.waiter.MaxAttemptsTerm
 // tell cpd to start ignoring code - CPD-OFF
 @SuppressWarnings("CPD-START")
 @Log4j2
-class OciObjectStorageBlobStore implements OciBlobStore {
+class OciMultiPartObjectStorageBlobStore implements OciBlobStore {
     private static final int NOT_FOUND = 404;
 
     // The recommended maximum size of a blob that should be uploaded in a single
@@ -114,7 +109,7 @@ class OciObjectStorageBlobStore implements OciBlobStore {
     private final String namespace;
     private final OciObjectStorageService storageService;
 
-    OciObjectStorageBlobStore(
+    OciMultiPartObjectStorageBlobStore(
             final OciObjectStorageService storageService, final RepositoryMetadata metadata) {
         this.storageService = storageService;
         this.repositoryName = metadata.name();
@@ -162,16 +157,14 @@ class OciObjectStorageBlobStore implements OciBlobStore {
         try (ObjectStorageClientReference clientRef = clientReference()) {
 
             final GetBucketResponse getBucketResponse =
-                    SocketAccess.doPrivilegedIOException(
-                            () ->
-                                    clientRef
-                                            .get()
-                                            .getBucket(
-                                                    GetBucketRequest.builder()
-                                                            .bucketName(bucketName)
-                                                            .namespaceName(namespace)
-                                                            .retryConfiguration(RETRY_CONFIGURATION)
-                                                            .build()));
+                    clientRef
+                            .get()
+                            .getBucket(
+                                    GetBucketRequest.builder()
+                                            .bucketName(bucketName)
+                                            .namespaceName(namespace)
+                                            .retryConfiguration(RETRY_CONFIGURATION)
+                                            .build());
 
             return getBucketResponse.getBucket() != null;
         } catch (final Exception e) {
@@ -202,29 +195,24 @@ class OciObjectStorageBlobStore implements OciBlobStore {
     private void createBucket(
             final String bucketCompartmentId, final String namespace, final String bucketName) {
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            SocketAccess.doPrivilegedIOException(
-                    () ->
-                            clientRef
-                                    .get()
-                                    .createBucket(
-                                            CreateBucketRequest.builder()
-                                                    .namespaceName(namespace)
-                                                    .retryConfiguration(RETRY_CONFIGURATION)
-                                                    .createBucketDetails(
-                                                            CreateBucketDetails.builder()
-                                                                    .compartmentId(
-                                                                            bucketCompartmentId)
-                                                                    .name(bucketName)
-                                                                    .storageTier(
-                                                                            CreateBucketDetails
-                                                                                    .StorageTier
-                                                                                    .Standard)
-                                                                    .publicAccessType(
-                                                                            CreateBucketDetails
-                                                                                    .PublicAccessType
-                                                                                    .NoPublicAccess)
-                                                                    .build())
-                                                    .build()));
+            clientRef
+                    .get()
+                    .createBucket(
+                            CreateBucketRequest.builder()
+                                    .namespaceName(namespace)
+                                    .retryConfiguration(RETRY_CONFIGURATION)
+                                    .createBucketDetails(
+                                            CreateBucketDetails.builder()
+                                                    .compartmentId(bucketCompartmentId)
+                                                    .name(bucketName)
+                                                    .storageTier(
+                                                            CreateBucketDetails.StorageTier
+                                                                    .Standard)
+                                                    .publicAccessType(
+                                                            CreateBucketDetails.PublicAccessType
+                                                                    .NoPublicAccess)
+                                                    .build())
+                                    .build());
 
         } catch (IOException e) {
             throw new BlobStoreException(
@@ -252,38 +240,33 @@ class OciObjectStorageBlobStore implements OciBlobStore {
      * @return a map of blob names and their metadata.
      */
     @Override
-    public
     // TODO: revisit whether this needs to list only immediate files under the directory (like
     // FSBlobContainer) or behave like S3BlobContainer (current behavior) that returns every prefix
-    Map<String, BlobMetadata> listBlobsByPrefix(String path, String prefix) throws IOException {
+    public Map<String, BlobMetadata> listBlobsByPrefix(String path, String prefix)
+            throws IOException {
         log.debug("attempting to list blobs by path: {}, prefix: {} ", path, prefix);
         final String pathPrefix = buildKey(path, prefix);
         log.debug("constructed pathPrefix: {} ", pathPrefix);
 
         final MapBuilder<String, BlobMetadata> mapBuilder = MapBuilder.newMapBuilder();
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            SocketAccess.doPrivilegedVoidIOException(
-                    () -> {
-                        try {
 
-                            fullListing(clientRef.get(), pathPrefix).stream()
-                                    .forEach(
-                                            summary -> {
-                                                String suffixName =
-                                                        summary.getName().substring(path.length());
-                                                final long size =
-                                                        summary.getSize() != null
-                                                                ? summary.getSize()
-                                                                : 0;
-                                                PlainBlobMetadata metadata =
-                                                        new PlainBlobMetadata(suffixName, size);
-                                                mapBuilder.put(suffixName, metadata);
-                                            });
-                        } catch (ExecutionException | InterruptedException | TimeoutException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
+            try {
+                fullListing(clientRef.get(), pathPrefix).stream()
+                        .forEach(
+                                summary -> {
+                                    String suffixName = summary.getName().substring(path.length());
+                                    final long size =
+                                            summary.getSize() != null ? summary.getSize() : 0;
+                                    PlainBlobMetadata metadata =
+                                            new PlainBlobMetadata(suffixName, size);
+                                    mapBuilder.put(suffixName, metadata);
+                                });
+            } catch (ExecutionException | InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
         }
+
         return mapBuilder.immutableMap();
     }
 
@@ -294,30 +277,27 @@ class OciObjectStorageBlobStore implements OciBlobStore {
 
         final MapBuilder<String, BlobContainer> mapBuilder = MapBuilder.newMapBuilder();
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            SocketAccess.doPrivilegedVoidIOException(
-                    () -> {
-                        try {
-                            fullListing(clientRef.get(), pathStr).stream()
-                                    .map(
-                                            objectSummary ->
-                                                    objectSummary
-                                                            .getName()
-                                                            .substring(pathStr.length())
-                                                            .split("/"))
-                                    .filter(name -> name.length > 1 && !name[0].isEmpty())
-                                    .map(name -> name[0])
-                                    .distinct()
-                                    .forEach(
-                                            childName -> {
-                                                mapBuilder.put(
-                                                        childName,
-                                                        new OciObjectStorageBlobContainer(
-                                                                path.add(childName), this));
-                                            });
-                        } catch (ExecutionException | InterruptedException | TimeoutException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
+            try {
+                fullListing(clientRef.get(), pathStr).stream()
+                        .map(
+                                objectSummary ->
+                                        objectSummary
+                                                .getName()
+                                                .substring(pathStr.length())
+                                                .split("/"))
+                        .filter(name -> name.length > 1 && !name[0].isEmpty())
+                        .map(name -> name[0])
+                        .distinct()
+                        .forEach(
+                                childName -> {
+                                    mapBuilder.put(
+                                            childName,
+                                            new OciObjectStorageBlobContainer(
+                                                    path.add(childName), this));
+                                });
+            } catch (ExecutionException | InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
         }
         return mapBuilder.immutableMap();
     }
@@ -333,24 +313,25 @@ class OciObjectStorageBlobStore implements OciBlobStore {
         final String opcClientRequestId = createClientRequestId("getObjects");
         final long startTime = System.currentTimeMillis();
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            return SocketAccess.doPrivilegedIOException(
-                    () -> {
-                        log.debug(
-                                "Getting object from '/n/{}/b/{}/o/{}'." + " OPC-REQUEST-ID: {}",
-                                namespace,
-                                bucketName,
-                                blobName,
-                                opcClientRequestId);
-                        ObjectStorageClient objectStorageClient = clientRef.get();
-                        GetObjectRequest getObjectRequest =
-                                GetObjectRequest.builder()
-                                        .bucketName(bucketName)
-                                        .namespaceName(namespace)
-                                        .objectName(blobName)
-                                        .retryConfiguration(RETRY_CONFIGURATION)
-                                        .build();
-                        return objectStorageClient.getObject(getObjectRequest).getInputStream();
-                    });
+
+            log.debug(
+                    "Getting object from '/n/{}/b/{}/o/{}'." + " OPC-REQUEST-ID: {}",
+                    namespace,
+                    bucketName,
+                    blobName,
+                    opcClientRequestId);
+            DownloadConfiguration downloadConfiguration = DownloadConfiguration.builder().build();
+            DownloadManager downloadManager =
+                    new DownloadManager(clientRef.get(), downloadConfiguration);
+            return downloadManager
+                    .getObject(
+                            GetObjectRequest.builder()
+                                    .bucketName(bucketName)
+                                    .namespaceName(namespace)
+                                    .objectName(blobName)
+                                    .retryConfiguration(RETRY_CONFIGURATION)
+                                    .build())
+                    .getInputStream();
         }
     }
 
@@ -378,19 +359,19 @@ class OciObjectStorageBlobStore implements OciBlobStore {
         }
 
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            return SocketAccess.doPrivilegedIOException(
-                    () -> {
-                        ObjectStorageClient objectStorageClient = clientRef.get();
-                        GetObjectRequest getObjectRequest =
-                                GetObjectRequest.builder()
-                                        .bucketName(bucketName)
-                                        .namespaceName(namespace)
-                                        .objectName(blobName)
-                                        .retryConfiguration(RETRY_CONFIGURATION)
-                                        .range(new Range(position, position + length - 1))
-                                        .build();
-                        return objectStorageClient.getObject(getObjectRequest).getInputStream();
-                    });
+            DownloadConfiguration downloadConfiguration = DownloadConfiguration.builder().build();
+            DownloadManager downloadManager =
+                    new DownloadManager(clientRef.get(), downloadConfiguration);
+            return downloadManager
+                    .getObject(
+                            GetObjectRequest.builder()
+                                    .bucketName(bucketName)
+                                    .namespaceName(namespace)
+                                    .objectName(blobName)
+                                    .retryConfiguration(RETRY_CONFIGURATION)
+                                    .range(new Range(position, position + length - 1))
+                                    .build())
+                    .getInputStream();
         }
     }
 
@@ -407,8 +388,7 @@ class OciObjectStorageBlobStore implements OciBlobStore {
             String blobName, InputStream inputStream, long blobSize, boolean failIfAlreadyExists)
             throws IOException {
         // we will always do multipart uploads
-        SocketAccess.doPrivilegedVoidIOException(
-                () -> putObject(inputStream, blobSize, blobName, !failIfAlreadyExists));
+        putObject(inputStream, blobSize, blobName, !failIfAlreadyExists);
     }
 
     /**
@@ -506,70 +486,60 @@ class OciObjectStorageBlobStore implements OciBlobStore {
     @Override
     public void deleteBlobsIgnoringIfNotExists(Collection<String> blobNames) throws IOException {
         try (ObjectStorageClientReference clientRef = clientReference()) {
+            blobNames.stream()
+                    .forEach(
+                            blobName -> {
+                                List<ObjectSummary> objectSummaries;
+                                objectSummaries =
+                                        clientRef
+                                                .get()
+                                                .listObjects(
+                                                        ListObjectsRequest.builder()
+                                                                .bucketName(bucketName)
+                                                                .namespaceName(namespace)
+                                                                .prefix(blobName)
+                                                                .retryConfiguration(
+                                                                        RETRY_CONFIGURATION)
+                                                                .build())
+                                                .getListObjects()
+                                                .getObjects();
 
-            SocketAccess.doPrivilegedVoidIOException(
-                    () ->
-                            blobNames.stream()
-                                    .forEach(
-                                            blobName -> {
-                                                List<ObjectSummary> objectSummaries;
-                                                objectSummaries =
-                                                        clientRef
-                                                                .get()
-                                                                .listObjects(
-                                                                        ListObjectsRequest.builder()
-                                                                                .bucketName(
-                                                                                        bucketName)
-                                                                                .namespaceName(
-                                                                                        namespace)
-                                                                                .prefix(blobName)
-                                                                                .retryConfiguration(
-                                                                                        RETRY_CONFIGURATION)
-                                                                                .build())
-                                                                .getListObjects()
-                                                                .getObjects();
-
-                                                if (objectSummaries.size() > 1) {
-                                                    log.error("will not delete {}", blobName);
-                                                    throw new RuntimeException(
-                                                            "Something is not right, when trying to"
-                                                                + " delete objects, we found more"
-                                                                + " than one object for the same"
-                                                                + " blob");
-                                                }
-                                                if (objectSummaries.size() == 1) {
-                                                    final String opcClientRequestId =
-                                                            createClientRequestId(
-                                                                    "DELETE-ignoring-if-exists");
-                                                    final ObjectSummary objectSummary =
-                                                            objectSummaries.get(0);
-                                                    final String objectName =
-                                                            objectSummary.getName();
-                                                    final Instant start = Instant.now();
-                                                    final DeleteObjectRequest deleteObjectRequest =
-                                                            DeleteObjectRequest.builder()
-                                                                    .bucketName(bucketName)
-                                                                    .namespaceName(namespace)
-                                                                    .objectName(objectName)
-                                                                    .retryConfiguration(
-                                                                            RETRY_CONFIGURATION)
-                                                                    .opcClientRequestId(
-                                                                            opcClientRequestId)
-                                                                    .build();
-                                                    Failsafe.with(
-                                                                    getRetryPolicy(
-                                                                            objectName,
-                                                                            opcClientRequestId,
-                                                                            start.toEpochMilli(),
-                                                                            "DELETE-ignoring-if-exists"))
-                                                            .run(
-                                                                    () ->
-                                                                            clientRef
-                                                                                    .get()
-                                                                                    .deleteObject(
-                                                                                            deleteObjectRequest));
-                                                }
-                                            }));
+                                if (objectSummaries.size() > 1) {
+                                    log.error("will not delete {}", blobName);
+                                    throw new RuntimeException(
+                                            "Something is not right, when trying to"
+                                                    + " delete objects, we found more"
+                                                    + " than one object for the same"
+                                                    + " blob");
+                                }
+                                if (objectSummaries.size() == 1) {
+                                    final String opcClientRequestId =
+                                            createClientRequestId("DELETE-ignoring-if-exists");
+                                    final ObjectSummary objectSummary = objectSummaries.get(0);
+                                    final String objectName = objectSummary.getName();
+                                    final Instant start = Instant.now();
+                                    final DeleteObjectRequest deleteObjectRequest =
+                                            DeleteObjectRequest.builder()
+                                                    .bucketName(bucketName)
+                                                    .namespaceName(namespace)
+                                                    .objectName(objectName)
+                                                    .retryConfiguration(RETRY_CONFIGURATION)
+                                                    .opcClientRequestId(opcClientRequestId)
+                                                    .build();
+                                    Failsafe.with(
+                                                    getRetryPolicy(
+                                                            objectName,
+                                                            opcClientRequestId,
+                                                            start.toEpochMilli(),
+                                                            "DELETE-ignoring-if-exists"))
+                                            .run(
+                                                    () ->
+                                                            clientRef
+                                                                    .get()
+                                                                    .deleteObject(
+                                                                            deleteObjectRequest));
+                                }
+                            });
         }
     }
 
@@ -672,8 +642,13 @@ class OciObjectStorageBlobStore implements OciBlobStore {
         String opcClientRequestId = createClientRequestId("put");
         try (ObjectStorageClientReference clientRef = clientReference()) {
             final Instant start = Instant.now();
-            ObjectStorageClient objectStorageClient = clientRef.get();
 
+            final UploadConfiguration uploadConfiguration =
+                    UploadConfiguration.builder()
+                            .allowMultipartUploads(true)
+                            .allowParallelUploads(true)
+                            .build();
+            UploadManager uploadManager = new UploadManager(clientRef.get(), uploadConfiguration);
             final PutObjectRequest putObjectRequest =
                     PutObjectRequest.builder()
                             .contentLength(blobSize)
@@ -703,7 +678,13 @@ class OciObjectStorageBlobStore implements OciBlobStore {
                                             objectName,
                                             opcClientRequestId);
 
-                                    objectStorageClient.putObject(putObjectRequest);
+                                    UploadManager.UploadRequest uploadRequest =
+                                            UploadManager.UploadRequest.builder(
+                                                            inputStream, blobSize)
+                                                    .allowOverwrite(true)
+                                                    .build(putObjectRequest);
+
+                                    uploadManager.upload(uploadRequest);
 
                                     final Instant end = Instant.now();
                                     log.debug(
@@ -739,7 +720,7 @@ class OciObjectStorageBlobStore implements OciBlobStore {
             Throwable rootCause = findRootCause(error);
             if (ex.isTimeout()
                     || rootCause instanceof java.net.SocketException
-                    || rootCause instanceof java.lang.IllegalStateException) {
+                    || rootCause instanceof IllegalStateException) {
                 // Exceptions that if retried may succeed
                 return true;
             } else {
