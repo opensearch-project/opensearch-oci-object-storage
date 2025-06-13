@@ -16,17 +16,14 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.opensearch.common.blobstore.BlobContainer;
-import org.opensearch.common.blobstore.BlobMetadata;
-import org.opensearch.common.blobstore.BlobPath;
-import org.opensearch.common.blobstore.DeleteResult;
+import org.opensearch.common.blobstore.*;
 import org.opensearch.common.blobstore.support.AbstractBlobContainer;
 
 class OciObjectStorageBlobContainer extends AbstractBlobContainer {
 
-    private final OciObjectStorageBlobStore blobStore;
+    private final OciBlobStore blobStore;
 
-    OciObjectStorageBlobContainer(BlobPath path, OciObjectStorageBlobStore blobStore) {
+    OciObjectStorageBlobContainer(BlobPath path, OciBlobStore blobStore) {
         super(path);
         this.blobStore = blobStore;
     }
