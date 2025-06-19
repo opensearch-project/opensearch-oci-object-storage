@@ -129,12 +129,14 @@ public class OciObjectStorageService implements Closeable {
         ;
 
         final ObjectStorageClient objectStorageClient =
-                ObjectStorageClient.builder()
-                        .configuration(
-                                ClientConfiguration.builder()
-                                        .readTimeoutMillis(READ_TIMEOUT_MILLIS)
-                                        .build())
-                        .build(authenticationDetailsProvider);
+                SocketAccess.doPrivilegedIOException(
+                        () ->
+                                ObjectStorageClient.builder()
+                                        .configuration(
+                                                ClientConfiguration.builder()
+                                                        .readTimeoutMillis(READ_TIMEOUT_MILLIS)
+                                                        .build())
+                                        .build(authenticationDetailsProvider));
 
         objectStorageClient.setEndpoint(clientSettings.getEndpoint());
 

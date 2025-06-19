@@ -11,9 +11,12 @@
 
 package org.opensearch.repositories.oci;
 
+import com.carrotsearch.randomizedtesting.RandomizedRunner;
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.util.Lists;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.opensearch.OpenSearchStatusException;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.repositories.get.GetRepositoriesResponse;
@@ -51,6 +54,10 @@ import static org.opensearch.action.admin.cluster.snapshots.get.GetSnapshotsRequ
 import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertAcked;
 
 @OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.SUITE, numDataNodes = 1)
+@RunWith(RandomizedRunner.class)
+@ThreadLeakFilters(defaultFilters = true, filters = {
+        IgnoreForkJoinCommonPoolThreads.class
+})
 public class OciObjectStoragePluginTests extends OpenSearchIntegTestCase {
     private static final String TEST_REPOSITORY_NAME = "myTestRepository";
 
@@ -69,7 +76,7 @@ public class OciObjectStoragePluginTests extends OpenSearchIntegTestCase {
     @Test
     public void testServer() throws Exception {
         try (NonJerseyServer nonJerseyServer = new NonJerseyServer()) {
-            nonJerseyServer.start();
+            SocketAccess.doPrivilegedVoidIOException(nonJerseyServer::start);
             // Test transport
             ensureGreen();
             final Client transportClient = client();
@@ -93,7 +100,7 @@ public class OciObjectStoragePluginTests extends OpenSearchIntegTestCase {
             // 4. Delete snapshot from repository
             testDeleteSnapshotFromRepository(transportClient);
 
-            nonJerseyServer.close();
+            SocketAccess.doPrivilegedVoidIOException(nonJerseyServer::close);
         }
     }
 
