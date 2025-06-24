@@ -66,17 +66,7 @@ public class FixtureTests {
 
         objectStorage =
                 ObjectStorageClient.builder()
-                    // This will run after, and in addition to, the default
-                    // client configurator;
-                    // this allows you to get the default behavior from the
-                    // default client
-                    // configurator
-                    // (in the case of the ObjectStorageClient, the
-                    // non-buffering behavior), but
-                    // you
-                    // can also add other things on top of it, like adding new
-                    // headers
-                        .endpoint("http://localhost:8080")
+                    .endpoint("http://localhost:8080")
                         .build(authenticationDetailsProvider);
     }
 
