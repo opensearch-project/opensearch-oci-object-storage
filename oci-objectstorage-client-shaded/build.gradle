@@ -26,8 +26,6 @@ jar {
 dependencies {
     // Please use compile only to prevent leaking original namespace to dependant projects.
     // Works together with ShadowJar`s configurations = [project.configurations.compileClasspath]
-    compileOnly("com.oracle.oci.sdk:oci-java-sdk-common-httpclient:${sdk_version}")
-    compileOnly("com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey:${sdk_version}")
     compileOnly("com.oracle.oci.sdk:oci-java-sdk-objectstorage:${sdk_version}")
     compileOnly("com.oracle.oci.sdk:oci-java-sdk-common:${sdk_version}")
     compileOnly("com.oracle.oci.sdk:oci-java-sdk-objectstorage-generated:${sdk_version}")
