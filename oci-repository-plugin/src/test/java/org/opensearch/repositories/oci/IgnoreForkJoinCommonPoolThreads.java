@@ -10,11 +10,13 @@
  */
 package org.opensearch.repositories.oci;
 import com.carrotsearch.randomizedtesting.ThreadFilter;
-import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 
 public class IgnoreForkJoinCommonPoolThreads implements ThreadFilter {
     @Override
     public boolean reject(Thread thread) {
-        return true;
+        ThreadGroup group = thread.getThreadGroup();
+        if(group != null && "TGRP-OciObjectStoragePluginTests".equals(group.getName()))
+            return true;
+        return false;
     }
 }
