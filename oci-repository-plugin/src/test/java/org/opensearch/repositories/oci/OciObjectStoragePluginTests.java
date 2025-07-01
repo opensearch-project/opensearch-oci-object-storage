@@ -27,7 +27,6 @@ import org.opensearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResp
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
 import org.opensearch.action.update.UpdateRequest;
-import org.opensearch.client.*;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
@@ -56,7 +55,7 @@ import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertAcked;
 @OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.SUITE, numDataNodes = 1)
 @RunWith(RandomizedRunner.class)
 @ThreadLeakFilters(defaultFilters = true, filters = {
-        IgnoreForkJoinCommonPoolThreads.class
+        IgnoreTestThreads.class
 })
 public class OciObjectStoragePluginTests extends OpenSearchIntegTestCase {
     private static final String TEST_REPOSITORY_NAME = "myTestRepository";

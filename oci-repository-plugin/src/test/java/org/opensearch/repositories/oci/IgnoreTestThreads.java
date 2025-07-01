@@ -11,7 +11,7 @@
 package org.opensearch.repositories.oci;
 import com.carrotsearch.randomizedtesting.ThreadFilter;
 
-public class IgnoreForkJoinCommonPoolThreads implements ThreadFilter {
+public class IgnoreTestThreads implements ThreadFilter {
     @Override
     public boolean reject(Thread thread) {
         ThreadGroup group = thread.getThreadGroup();
