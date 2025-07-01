@@ -15,8 +15,6 @@ public class IgnoreTestThreads implements ThreadFilter {
     @Override
     public boolean reject(Thread thread) {
         ThreadGroup group = thread.getThreadGroup();
-        if(group != null && "TGRP-OciObjectStoragePluginTests".equals(group.getName()))
-            return true;
-        return false;
+      return group != null && "TGRP-OciObjectStoragePluginTests".equals(group.getName());
     }
 }
