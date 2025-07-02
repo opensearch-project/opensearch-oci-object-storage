@@ -11,9 +11,12 @@
 
 package org.opensearch.repositories.oci;
 
+import com.carrotsearch.randomizedtesting.RandomizedRunner;
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.util.Lists;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.opensearch.OpenSearchStatusException;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.repositories.get.GetRepositoriesResponse;
@@ -24,7 +27,6 @@ import org.opensearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResp
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.clustermanager.AcknowledgedResponse;
 import org.opensearch.action.update.UpdateRequest;
-import org.opensearch.client.*;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
@@ -51,6 +53,10 @@ import static org.opensearch.action.admin.cluster.snapshots.get.GetSnapshotsRequ
 import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertAcked;
 
 @OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.SUITE, numDataNodes = 1)
+@RunWith(RandomizedRunner.class)
+@ThreadLeakFilters(defaultFilters = true, filters = {
+        IgnoreTestThreads.class
+})
 public class OciObjectStoragePluginTests extends OpenSearchIntegTestCase {
     private static final String TEST_REPOSITORY_NAME = "myTestRepository";
 

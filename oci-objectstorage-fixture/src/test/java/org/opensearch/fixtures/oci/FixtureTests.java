@@ -3,7 +3,6 @@ package org.opensearch.fixtures.oci;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.Region;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.auth.SimpleAuthenticationDetailsProvider;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.http.client.jersey.ApacheClientProperties;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.model.Range;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorage;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageClient;
@@ -67,34 +66,7 @@ public class FixtureTests {
 
         objectStorage =
                 ObjectStorageClient.builder()
-                    // This will run after, and in addition to, the default
-                    // client configurator;
-                    // this allows you to get the default behavior from the
-                    // default client
-                    // configurator
-                    // (in the case of the ObjectStorageClient, the
-                    // non-buffering behavior), but
-                    // you
-                    // can also add other things on top of it, like adding new
-                    // headers
-
-                    .additionalClientConfigurator(
-                        builder -> {
-                            // Define a connection manager and its
-                            // properties
-                            final PoolingHttpClientConnectionManager
-                                poolConnectionManager =
-                                new PoolingHttpClientConnectionManager();
-                            // Setting intentionally pool to 1 to find connections leaks
-                            poolConnectionManager.setMaxTotal(1);
-                            poolConnectionManager.setDefaultMaxPerRoute(1);
-
-                            builder.property(
-                                ApacheClientProperties
-                                    .CONNECTION_MANAGER,
-                                poolConnectionManager);
-                        })
-                        .endpoint("http://localhost:8080")
+                    .endpoint("http://localhost:8080")
                         .build(authenticationDetailsProvider);
     }
 
