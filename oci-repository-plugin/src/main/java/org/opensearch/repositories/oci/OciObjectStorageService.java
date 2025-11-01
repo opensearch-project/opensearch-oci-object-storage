@@ -19,14 +19,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.log4j.Log4j2;
 import org.opensearch.common.collect.MapBuilder;
 import org.opensearch.common.util.LazyInitializable;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.ClientConfiguration;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.auth.BasicAuthenticationDetailsProvider;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.ObjectStorageClient;
 
 /** Service class to hold client instances */
 @Log4j2
 public class OciObjectStorageService implements Closeable {
-    private static final int READ_TIMEOUT_MILLIS = 120000;
 
     /**
      * Dictionary of client instances. Client instances are built lazily from the latest settings.
@@ -130,13 +128,7 @@ public class OciObjectStorageService implements Closeable {
 
         final ObjectStorageClient objectStorageClient =
                 SocketAccess.doPrivilegedIOException(
-                        () ->
-                                ObjectStorageClient.builder()
-                                        .configuration(
-                                                ClientConfiguration.builder()
-                                                        .readTimeoutMillis(READ_TIMEOUT_MILLIS)
-                                                        .build())
-                                        .build(authenticationDetailsProvider));
+                        () -> new ObjectStorageClient(authenticationDetailsProvider));
 
         objectStorageClient.setEndpoint(clientSettings.getEndpoint());
 
