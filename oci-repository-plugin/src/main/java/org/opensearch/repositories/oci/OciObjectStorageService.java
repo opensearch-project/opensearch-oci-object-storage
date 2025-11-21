@@ -124,7 +124,6 @@ public class OciObjectStorageService implements Closeable {
 
         BasicAuthenticationDetailsProvider authenticationDetailsProvider =
                 clientSettings.getAuthenticationDetailsProvider();
-        ;
 
         final ObjectStorageClient objectStorageClient =
                 SocketAccess.doPrivilegedIOException(

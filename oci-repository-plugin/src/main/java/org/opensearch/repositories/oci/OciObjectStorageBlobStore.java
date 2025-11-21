@@ -420,7 +420,11 @@ class OciObjectStorageBlobStore implements BlobStore {
                                                 .build();
 
                                 try {
-                                    clientRef.get().deleteObject(deleteObjectRequest);
+                                    SocketAccess.doPrivilegedIOException(
+                                            () ->
+                                                    clientRef
+                                                            .get()
+                                                            .deleteObject(deleteObjectRequest));
                                     deletedBlobs.incrementAndGet();
                                 } catch (Exception e) {
                                     if (e.getCause() instanceof BmcException) {
@@ -478,18 +482,22 @@ class OciObjectStorageBlobStore implements BlobStore {
                                             blobName -> {
                                                 List<ObjectSummary> objectSummaries;
                                                 objectSummaries =
-                                                        clientRef
-                                                                .get()
-                                                                .listObjects(
-                                                                        ListObjectsRequest.builder()
-                                                                                .bucketName(
-                                                                                        bucketName)
-                                                                                .namespaceName(
-                                                                                        namespace)
-                                                                                .prefix(blobName)
-                                                                                .build())
-                                                                .getListObjects()
-                                                                .getObjects();
+                                                        SocketAccess.doPrivilegedIOException(
+                                                                () ->
+                                                                        clientRef
+                                                                                .get()
+                                                                                .listObjects(
+                                                                                        ListObjectsRequest
+                                                                                                .builder()
+                                                                                                .bucketName(
+                                                                                                        bucketName)
+                                                                                                .namespaceName(
+                                                                                                        namespace)
+                                                                                                .prefix(
+                                                                                                        blobName)
+                                                                                                .build())
+                                                                                .getListObjects()
+                                                                                .getObjects());
 
                                                 if (objectSummaries.size() > 1) {
                                                     log.error("will not delete {}", blobName);
@@ -517,9 +525,12 @@ class OciObjectStorageBlobStore implements BlobStore {
                                                                             opcClientRequestId)
                                                                     .build();
 
-                                                    clientRef
-                                                            .get()
-                                                            .deleteObject(deleteObjectRequest);
+                                                    SocketAccess.doPrivilegedIOException(
+                                                            () ->
+                                                                    clientRef
+                                                                            .get()
+                                                                            .deleteObject(
+                                                                                    deleteObjectRequest));
                                                 }
                                             }));
         }
@@ -527,14 +538,16 @@ class OciObjectStorageBlobStore implements BlobStore {
 
     boolean blobExists(String blobName) throws IOException {
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            clientRef
-                    .get()
-                    .headObject(
-                            HeadObjectRequest.builder()
-                                    .namespaceName(namespace)
-                                    .bucketName(bucketName)
-                                    .objectName(blobName)
-                                    .build());
+            SocketAccess.doPrivilegedIOException(
+                    () ->
+                            clientRef
+                                    .get()
+                                    .headObject(
+                                            HeadObjectRequest.builder()
+                                                    .namespaceName(namespace)
+                                                    .bucketName(bucketName)
+                                                    .objectName(blobName)
+                                                    .build()));
         } catch (Exception e) {
 
             if (e instanceof BmcException) {
@@ -644,7 +657,7 @@ class OciObjectStorageBlobStore implements BlobStore {
                                 .allowOverwrite(true)
                                 .build(putObjectRequest);
 
-                uploadManager.upload(uploadRequest);
+                SocketAccess.doPrivilegedIOException(() -> uploadManager.upload(uploadRequest));
 
                 final Instant end = Instant.now();
                 log.debug(
