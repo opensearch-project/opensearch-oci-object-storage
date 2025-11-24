@@ -592,15 +592,17 @@ class OciObjectStorageBlobStore implements BlobStore {
             final String startPrefix = start;
             final String requestId = createClientRequestId("listObjects");
             final ListObjectsResponse response =
-                    objectStorageClient.listObjects(
-                            ListObjectsRequest.builder()
-                                    .bucketName(bucketName)
-                                    .namespaceName(namespace)
-                                    .prefix(prefix)
-                                    .limit(1000)
-                                    .start(startPrefix)
-                                    .opcClientRequestId(requestId)
-                                    .build());
+                    SocketAccess.doPrivilegedIOException(
+                            () ->
+                                    objectStorageClient.listObjects(
+                                            ListObjectsRequest.builder()
+                                                    .bucketName(bucketName)
+                                                    .namespaceName(namespace)
+                                                    .prefix(prefix)
+                                                    .limit(1000)
+                                                    .start(startPrefix)
+                                                    .opcClientRequestId(requestId)
+                                                    .build()));
 
             items.addAll(response.getListObjects().getObjects());
             log.debug("items found: {}", response.getListObjects().getObjects());
