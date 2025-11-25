@@ -11,7 +11,6 @@
 
 package org.opensearch.repositories.oci;
 
-import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
 import static org.opensearch.repositories.oci.OciObjectStorageRepository.*;
 
 import java.io.ByteArrayInputStream;
@@ -19,19 +18,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.log4j.Log4j2;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.common.blobstore.BlobContainer;
 import org.opensearch.common.blobstore.BlobMetadata;
@@ -56,9 +51,6 @@ import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.transfer
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.transfer.DownloadManager;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.transfer.UploadConfiguration;
 import org.opensearch.repositories.oci.sdk.com.oracle.bmc.objectstorage.transfer.UploadManager;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.retrier.RetryConfiguration;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.waiter.ExponentialBackoffDelayStrategy;
-import org.opensearch.repositories.oci.sdk.com.oracle.bmc.waiter.MaxAttemptsTerminationStrategy;
 
 // Lots of code duplication with OciObjectStorageBlobStore and OciObjectStorageBlobContainer
 // Re-using the code will require significant refactoring which is needed on both
@@ -73,8 +65,6 @@ class OciObjectStorageBlobStore implements BlobStore {
     // The recommended maximum size of a blob that should be uploaded in a single
     // request. Larger files should be uploaded over multiple requests
     public static final long MULTIPART_BUFFER_SIZE;
-
-    private static final RetryConfiguration RETRY_CONFIGURATION;
 
     static {
         final String key = "os.repository_oci.buffer_size";
@@ -102,16 +92,6 @@ class OciObjectStorageBlobStore implements BlobStore {
             }
             MULTIPART_BUFFER_SIZE = largeBlobThresholdByteSize;
         }
-        // Initialize RETRY_CONFIGURATION
-        RETRY_CONFIGURATION =
-                new RetryConfiguration.Builder()
-                        .terminationStrategy(
-                                new MaxAttemptsTerminationStrategy(
-                                        RetryConfiguration.DEFAULT_MAX_RETRY_ATTEMPTS))
-                        .delayStrategy(
-                                new ExponentialBackoffDelayStrategy(
-                                        RetryConfiguration.DEFAULT_MAX_WAIT_TIME))
-                        .build();
     }
 
     private final String repositoryName;
@@ -175,7 +155,6 @@ class OciObjectStorageBlobStore implements BlobStore {
                                                     GetBucketRequest.builder()
                                                             .bucketName(bucketName)
                                                             .namespaceName(namespace)
-                                                            .retryConfiguration(RETRY_CONFIGURATION)
                                                             .build()));
 
             return getBucketResponse.getBucket() != null;
@@ -214,7 +193,6 @@ class OciObjectStorageBlobStore implements BlobStore {
                                     .createBucket(
                                             CreateBucketRequest.builder()
                                                     .namespaceName(namespace)
-                                                    .retryConfiguration(RETRY_CONFIGURATION)
                                                     .createBucketDetails(
                                                             CreateBucketDetails.builder()
                                                                     .compartmentId(
@@ -351,7 +329,6 @@ class OciObjectStorageBlobStore implements BlobStore {
                                                 .bucketName(bucketName)
                                                 .namespaceName(namespace)
                                                 .objectName(blobName)
-                                                .retryConfiguration(RETRY_CONFIGURATION)
                                                 .build())
                                 .getInputStream();
                     });
@@ -393,7 +370,6 @@ class OciObjectStorageBlobStore implements BlobStore {
                                                 .bucketName(bucketName)
                                                 .namespaceName(namespace)
                                                 .objectName(blobName)
-                                                .retryConfiguration(RETRY_CONFIGURATION)
                                                 .range(new Range(position, position + length - 1))
                                                 .build())
                                 .getInputStream();
@@ -440,61 +416,50 @@ class OciObjectStorageBlobStore implements BlobStore {
                                                 .bucketName(bucketName)
                                                 .namespaceName(namespace)
                                                 .objectName(objectName)
-                                                .retryConfiguration(RETRY_CONFIGURATION)
                                                 .opcClientRequestId(opcClientRequestId)
                                                 .build();
-                                Failsafe.with(
-                                                getRetryPolicy(
-                                                        objectName,
-                                                        opcClientRequestId,
-                                                        start.toEpochMilli(),
-                                                        "DELETE"))
-                                        .run(
-                                                () -> {
-                                                    try {
-                                                        clientRef
-                                                                .get()
-                                                                .deleteObject(deleteObjectRequest);
-                                                        deletedBlobs.incrementAndGet();
-                                                    } catch (Exception e) {
-                                                        if (e.getCause() instanceof BmcException) {
-                                                            final BmcException bmcEx =
-                                                                    (BmcException) e.getCause();
-                                                            if (bmcEx.getStatusCode()
-                                                                    == HttpURLConnection
-                                                                            .HTTP_NOT_FOUND) {
-                                                                log.warn(
-                                                                        "blob couldn't be found to"
-                                                                                + " delete, doing"
-                                                                                + " nothing");
-                                                            } else {
-                                                                log.error(
-                                                                        "Couldn't delete blob:"
-                                                                            + " n:{}/b:{}/o:{}"
-                                                                            + " exists."
-                                                                            + " unrecognized error"
-                                                                            + " code in response",
-                                                                        namespace,
-                                                                        bucketName,
-                                                                        objectName,
-                                                                        e);
-                                                                throw new BlobStoreException(
-                                                                        "Unable to check if blob ["
-                                                                                + objectName
-                                                                                + "] exists,"
-                                                                                + " unrecognized"
-                                                                                + " error code in"
-                                                                                + " response",
-                                                                        e);
-                                                            }
-                                                        }
-                                                        throw new BlobStoreException(
-                                                                "Unable to delete if blob ["
-                                                                        + objectName
-                                                                        + "] exists",
-                                                                e);
-                                                    }
-                                                });
+
+                                try {
+                                    SocketAccess.doPrivilegedIOException(
+                                            () ->
+                                                    clientRef
+                                                            .get()
+                                                            .deleteObject(deleteObjectRequest));
+                                    deletedBlobs.incrementAndGet();
+                                } catch (Exception e) {
+                                    if (e.getCause() instanceof BmcException) {
+                                        final BmcException bmcEx = (BmcException) e.getCause();
+                                        if (bmcEx.getStatusCode()
+                                                == HttpURLConnection.HTTP_NOT_FOUND) {
+                                            log.warn(
+                                                    "blob couldn't be found to"
+                                                            + " delete, doing"
+                                                            + " nothing");
+                                        } else {
+                                            log.error(
+                                                    "Couldn't delete blob:"
+                                                            + " n:{}/b:{}/o:{}"
+                                                            + " exists."
+                                                            + " unrecognized error"
+                                                            + " code in response",
+                                                    namespace,
+                                                    bucketName,
+                                                    objectName,
+                                                    e);
+                                            throw new BlobStoreException(
+                                                    "Unable to check if blob ["
+                                                            + objectName
+                                                            + "] exists,"
+                                                            + " unrecognized"
+                                                            + " error code in"
+                                                            + " response",
+                                                    e);
+                                        }
+                                    }
+                                    throw new BlobStoreException(
+                                            "Unable to delete if blob [" + objectName + "] exists",
+                                            e);
+                                }
                             });
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
@@ -517,20 +482,22 @@ class OciObjectStorageBlobStore implements BlobStore {
                                             blobName -> {
                                                 List<ObjectSummary> objectSummaries;
                                                 objectSummaries =
-                                                        clientRef
-                                                                .get()
-                                                                .listObjects(
-                                                                        ListObjectsRequest.builder()
-                                                                                .bucketName(
-                                                                                        bucketName)
-                                                                                .namespaceName(
-                                                                                        namespace)
-                                                                                .prefix(blobName)
-                                                                                .retryConfiguration(
-                                                                                        RETRY_CONFIGURATION)
-                                                                                .build())
-                                                                .getListObjects()
-                                                                .getObjects();
+                                                        SocketAccess.doPrivilegedIOException(
+                                                                () ->
+                                                                        clientRef
+                                                                                .get()
+                                                                                .listObjects(
+                                                                                        ListObjectsRequest
+                                                                                                .builder()
+                                                                                                .bucketName(
+                                                                                                        bucketName)
+                                                                                                .namespaceName(
+                                                                                                        namespace)
+                                                                                                .prefix(
+                                                                                                        blobName)
+                                                                                                .build())
+                                                                                .getListObjects()
+                                                                                .getObjects());
 
                                                 if (objectSummaries.size() > 1) {
                                                     log.error("will not delete {}", blobName);
@@ -554,23 +521,16 @@ class OciObjectStorageBlobStore implements BlobStore {
                                                                     .bucketName(bucketName)
                                                                     .namespaceName(namespace)
                                                                     .objectName(objectName)
-                                                                    .retryConfiguration(
-                                                                            RETRY_CONFIGURATION)
                                                                     .opcClientRequestId(
                                                                             opcClientRequestId)
                                                                     .build();
-                                                    Failsafe.with(
-                                                                    getRetryPolicy(
-                                                                            objectName,
-                                                                            opcClientRequestId,
-                                                                            start.toEpochMilli(),
-                                                                            "DELETE-ignoring-if-exists"))
-                                                            .run(
-                                                                    () ->
-                                                                            clientRef
-                                                                                    .get()
-                                                                                    .deleteObject(
-                                                                                            deleteObjectRequest));
+
+                                                    SocketAccess.doPrivilegedIOException(
+                                                            () ->
+                                                                    clientRef
+                                                                            .get()
+                                                                            .deleteObject(
+                                                                                    deleteObjectRequest));
                                                 }
                                             }));
         }
@@ -578,15 +538,16 @@ class OciObjectStorageBlobStore implements BlobStore {
 
     boolean blobExists(String blobName) throws IOException {
         try (ObjectStorageClientReference clientRef = clientReference()) {
-            clientRef
-                    .get()
-                    .headObject(
-                            HeadObjectRequest.builder()
-                                    .namespaceName(namespace)
-                                    .bucketName(bucketName)
-                                    .objectName(blobName)
-                                    .retryConfiguration(RETRY_CONFIGURATION)
-                                    .build());
+            SocketAccess.doPrivilegedIOException(
+                    () ->
+                            clientRef
+                                    .get()
+                                    .headObject(
+                                            HeadObjectRequest.builder()
+                                                    .namespaceName(namespace)
+                                                    .bucketName(bucketName)
+                                                    .objectName(blobName)
+                                                    .build()));
         } catch (Exception e) {
 
             if (e instanceof BmcException) {
@@ -631,24 +592,17 @@ class OciObjectStorageBlobStore implements BlobStore {
             final String startPrefix = start;
             final String requestId = createClientRequestId("listObjects");
             final ListObjectsResponse response =
-                    Failsafe.with(
-                                    getRetryPolicy(
-                                            prefix,
-                                            requestId,
-                                            Instant.now().toEpochMilli(),
-                                            "LIST"))
-                            .get(
-                                    () ->
-                                            objectStorageClient.listObjects(
-                                                    ListObjectsRequest.builder()
-                                                            .bucketName(bucketName)
-                                                            .namespaceName(namespace)
-                                                            .prefix(prefix)
-                                                            .limit(1000)
-                                                            .start(startPrefix)
-                                                            .opcClientRequestId(requestId)
-                                                            .retryConfiguration(RETRY_CONFIGURATION)
-                                                            .build()));
+                    SocketAccess.doPrivilegedIOException(
+                            () ->
+                                    objectStorageClient.listObjects(
+                                            ListObjectsRequest.builder()
+                                                    .bucketName(bucketName)
+                                                    .namespaceName(namespace)
+                                                    .prefix(prefix)
+                                                    .limit(1000)
+                                                    .start(startPrefix)
+                                                    .opcClientRequestId(requestId)
+                                                    .build()));
 
             items.addAll(response.getListObjects().getObjects());
             log.debug("items found: {}", response.getListObjects().getObjects());
@@ -687,179 +641,45 @@ class OciObjectStorageBlobStore implements BlobStore {
                             .bucketName(bucketName)
                             .objectName(objectName)
                             .namespaceName(namespace)
-                            .retryConfiguration(RETRY_CONFIGURATION)
-                            // For now no retry configured yet we will use fail safe instead
-                            // .retryConfiguration(RetryConfiguration.builder()
-                            //    .delayStrategy(new ExponentialBackoffDelayStrategy()).build())
                             .opcClientRequestId(opcClientRequestId)
                             .putObjectBody(inputStream)
                             .ifNoneMatch(override ? null : "*")
                             .build();
 
-            Failsafe.with(
-                            getRetryPolicy(
-                                    objectName, opcClientRequestId, start.toEpochMilli(), "PUT"))
-                    .run(
-                            () -> {
-                                try {
-                                    log.debug(
-                                            "Pushing object to '/n/{}/b/{}/o/{}'. OPC-REQUEST-ID:"
-                                                    + " {}",
-                                            namespace,
-                                            bucketName,
-                                            objectName,
-                                            opcClientRequestId);
+            try {
+                log.debug(
+                        "Pushing object to '/n/{}/b/{}/o/{}'. OPC-REQUEST-ID:" + " {}",
+                        namespace,
+                        bucketName,
+                        objectName,
+                        opcClientRequestId);
 
-                                    UploadManager.UploadRequest uploadRequest =
-                                            UploadManager.UploadRequest.builder(
-                                                            inputStream, blobSize)
-                                                    .allowOverwrite(true)
-                                                    .build(putObjectRequest);
+                UploadManager.UploadRequest uploadRequest =
+                        UploadManager.UploadRequest.builder(inputStream, blobSize)
+                                .allowOverwrite(true)
+                                .build(putObjectRequest);
 
-                                    uploadManager.upload(uploadRequest);
+                SocketAccess.doPrivilegedIOException(() -> uploadManager.upload(uploadRequest));
 
-                                    final Instant end = Instant.now();
-                                    log.debug(
-                                            "Finished pushing object '/n/{}/b/{}/o/{}' in {}"
-                                                    + " millis. OPC-REQUEST-ID: {}",
-                                            namespace,
-                                            bucketName,
-                                            objectName,
-                                            end.toEpochMilli() - start.toEpochMilli(),
-                                            opcClientRequestId);
-                                } catch (Throwable e) {
-                                    log.error(
-                                            "Failed pushing object '/n/{}/b/{}/o/{}."
-                                                    + " OPC-REQUEST-ID: {}' ",
-                                            namespace,
-                                            bucketName,
-                                            objectName,
-                                            opcClientRequestId,
-                                            e);
-                                    throw e;
-                                }
-                            });
-        }
-    }
-
-    /* The retryable Http error codes are listed in the below link:
-     *  - https://docs.oracle.com/en-us/iaas/Content/API/References/apierrors.htm
-     * */
-    private boolean isRetryable(Throwable error) {
-        Optional<BmcException> optionalBmcEx = unwrap(error);
-        if (optionalBmcEx.isPresent()) {
-            BmcException ex = optionalBmcEx.get();
-            Throwable rootCause = findRootCause(error);
-            if (ex.isTimeout()
-                    || rootCause instanceof java.net.SocketException
-                    || rootCause instanceof java.lang.IllegalStateException) {
-                // Exceptions that if retried may succeed
-                return true;
-            } else {
-                int httpCode = ex.getStatusCode();
-                String errorCode = ex.getServiceCode();
-                switch (httpCode) {
-                    case 409:
-                        if (errorCode.equals("ExternalServerIncorrectState")
-                                || errorCode.equals("IncorrectState")) return true;
-                        return false;
-                    case 503:
-                        if (errorCode.equals("ExternalServerUnreachable")
-                                || errorCode.equals("ExternalServerTimeout")
-                                || errorCode.equals("ExternalServerInvalidResponse")
-                                || errorCode.equals("ServiceUnavailable")) return true;
-                        return false;
-                    case 429:
-                    case 500:
-                        return true;
-                    default:
-                        return false;
-                }
+                final Instant end = Instant.now();
+                log.debug(
+                        "Finished pushing object '/n/{}/b/{}/o/{}' in {}"
+                                + " millis. OPC-REQUEST-ID: {}",
+                        namespace,
+                        bucketName,
+                        objectName,
+                        end.toEpochMilli() - start.toEpochMilli(),
+                        opcClientRequestId);
+            } catch (Throwable e) {
+                log.error(
+                        "Failed pushing object '/n/{}/b/{}/o/{}." + " OPC-REQUEST-ID: {}' ",
+                        namespace,
+                        bucketName,
+                        objectName,
+                        opcClientRequestId,
+                        e);
+                throw e;
             }
-        }
-        log.error("Getting a non BmcException error", error);
-        return false;
-    }
-
-    private Throwable findRootCause(Throwable error) {
-        Throwable rootCause = error;
-        while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
-            rootCause = rootCause.getCause();
-        }
-        return rootCause;
-    }
-
-    private RetryPolicy<Object> getRetryPolicy(
-            String objectName, String opcClientRequestId, long start, String op) {
-        return new RetryPolicy<>()
-                .withJitter(0.2)
-                .withBackoff(1, 30, ChronoUnit.SECONDS)
-                .withMaxRetries(10)
-                .handleIf(this::isRetryable)
-                .onRetry(
-                        (res) -> {
-                            final Optional<BmcException> bmce = unwrap(res.getLastFailure());
-                            String responseOpsRequestId =
-                                    bmce.map(BmcException::getOpcRequestId)
-                                            .orElse(opcClientRequestId);
-                            if (bmce.isPresent()) {
-                                // OCI storage Client connection may be more error prone and
-                                // therefore release it
-                                storageService.releaseClient(repositoryName);
-                            }
-                            log.warn(
-                                    "Retrying to {} object from '/n/{}/b/{}/o/{}'. OPC-REQUEST-ID:"
-                                            + " {}. Attempt: {}... {}",
-                                    op,
-                                    namespace,
-                                    bucketName,
-                                    objectName,
-                                    responseOpsRequestId,
-                                    res.getAttemptCount() + 1,
-                                    getStackTrace(res.getLastFailure()));
-                            // TODO: wire telemetry
-                            // scope.emit("retry", 1);
-                        })
-                .onFailure(
-                        e -> {
-                            String responseOpsRequestId =
-                                    unwrap(e.getFailure())
-                                            .map(BmcException::getOpcRequestId)
-                                            .orElse(opcClientRequestId);
-                            log.error(
-                                    "{} object '/n/{}/b/{}/o/{}' failed or retries exhausted in {}"
-                                            + " millis. OPC-REQUEST-ID: {}, Failing...\n"
-                                            + "{}",
-                                    op,
-                                    namespace,
-                                    bucketName,
-                                    objectName,
-                                    System.currentTimeMillis() - start,
-                                    responseOpsRequestId,
-                                    getStackTrace(e.getFailure()));
-                            // TODO: wire telemetry
-                            // scope.emit("failure", 1);
-                        });
-    }
-
-    public static Optional<BmcException> unwrap(Throwable from) {
-        if (from == null) {
-            return Optional.empty();
-        }
-        if (from instanceof BmcException) {
-            return Optional.of((BmcException) from);
-        } else {
-            Throwable throwable = from;
-
-            do {
-                if (throwable.getCause() == null) {
-                    return Optional.empty();
-                }
-
-                throwable = throwable.getCause();
-            } while (!throwable.getClass().equals(BmcException.class));
-
-            return Optional.of((BmcException) throwable);
         }
     }
 }

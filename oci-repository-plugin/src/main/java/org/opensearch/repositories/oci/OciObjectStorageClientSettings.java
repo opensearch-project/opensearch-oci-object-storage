@@ -163,18 +163,21 @@ public class OciObjectStorageClientSettings {
          * The SDK's "region code" is the internal enum's public region name.
          */
 
-        return SimpleAuthenticationDetailsProvider.builder()
-                .userId(userId)
-                .tenantId(tenantId)
-                .region(region)
-                .fingerprint(fingerprint)
-                .privateKeySupplier(privateKeySupplier)
-                .build();
+        return SocketAccess.doPrivilegedIOException(
+                () ->
+                        SimpleAuthenticationDetailsProvider.builder()
+                                .userId(userId)
+                                .tenantId(tenantId)
+                                .region(region)
+                                .fingerprint(fingerprint)
+                                .privateKeySupplier(privateKeySupplier)
+                                .build());
     }
 
     private static BasicAuthenticationDetailsProvider toAuthDetailsProvider() {
         try {
-            return InstancePrincipalsAuthenticationDetailsProvider.builder().build();
+            return SocketAccess.doPrivilegedIOException(
+                    () -> InstancePrincipalsAuthenticationDetailsProvider.builder().build());
         } catch (Exception ex) {
             log.error("Failure calling toAuthDetailsProvider", ex);
             throw ex;
