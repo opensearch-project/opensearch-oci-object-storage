@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import lombok.SneakyThrows;
 import org.opensearch.SpecialPermission;
 import org.opensearch.common.CheckedRunnable;
 
@@ -28,8 +29,8 @@ public class SocketAccess {
 
     private SocketAccess() {}
 
-    public static <T> T doPrivilegedIOException(PrivilegedExceptionAction<T> operation)
-            throws IOException {
+    @SneakyThrows
+    public static <T> T doPrivilegedIOException(PrivilegedExceptionAction<T> operation) {
         SpecialPermission.check();
         try {
             return AccessController.doPrivileged(operation);
@@ -39,8 +40,8 @@ public class SocketAccess {
         }
     }
 
-    public static void doPrivilegedVoidIOException(CheckedRunnable<IOException> action)
-            throws IOException {
+    @SneakyThrows
+    public static void doPrivilegedVoidIOException(CheckedRunnable<IOException> action) {
         SpecialPermission.check();
         try {
             AccessController.doPrivileged(
