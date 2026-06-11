@@ -1,4 +1,9 @@
 grant {
+  // OCI auth: the SDK reads the user-configured private-key PEM (auth credential, an arbitrary
+  // user-chosen filesystem path passed via repository settings); the OpenSearch 3.4+ java-agent
+  // sandbox denies it without an explicit grant (3.0 did not enforce this). Read-only.
+  permission java.io.FilePermission "<<ALL FILES>>", "read";
+
   // Per https://docs.cloud.oracle.com/en-us/iaas/Content/API/SDKDocs/javasdkconfig.htm
   // TODO: get these fixed in oci sdk
   // Required by Jersey
